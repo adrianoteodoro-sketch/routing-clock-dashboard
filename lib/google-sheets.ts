@@ -160,6 +160,22 @@ function parseValues(values: string[][]): RawRoutingOrder[] {
   return rows
 }
 
+/** Busca o título da primeira aba da planilha (necessário para montar o range). */
+async function getFirstSheetTitle(sheetId: string, token: string): Promise<string> {
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}` +
+    `?fields=sheets.properties.title`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Sheets API (metadata) ${res.status}: ${body.slice(0, 200)}`)
+  }
+  const json = (await res.json()) as { sheets?: { properties?: { title?: string } }[] }
+  const title = json.sheets?.[0]?.properties?.title
+  if (!title) throw new Error("Planilha sem abas legíveis")
+  return title
+}
+
 /** Busca as linhas do Routing Clock a partir do Google Sheet configurado. */
 export async function fetchRowsFromSheet(): Promise<RawRoutingOrder[]> {
   const credentials = getCredentials()
@@ -169,13 +185,19 @@ export async function fetchRowsFromSheet(): Promise<RawRoutingOrder[]> {
   }
 
   const sheetId = extractSheetId(rawId)
-
-  // Um range válido contém "!" (aba) ou ":" (colunas). Caso contrário (ex.: alguém
-  // colou um ID no campo), usamos a primeira aba inteira como padrão.
-  const rawRange = (process.env.GOOGLE_SHEET_RANGE || "").trim()
-  const range = rawRange.includes("!") || rawRange.includes(":") ? rawRange : "A:Z"
-
   const token = await getAccessToken(credentials)
+
+  // O range precisa conter o nome da aba (ex.: "Página1!A:Z"). Se a env não trouxer
+  // uma aba explícita, descobrimos o título da primeira aba automaticamente.
+  const rawRange = (process.env.GOOGLE_SHEET_RANGE || "").trim()
+  let range: string
+  if (rawRange.includes("!")) {
+    range = rawRange
+  } else {
+    const firstTab = await getFirstSheetTitle(sheetId, token)
+    // Nome da aba escapado com aspas simples (seguro p/ espaços e nomes reservados).
+    range = `'${firstTab.replace(/'/g, "''")}'!A:Z`
+  }
 
   const url =
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}` +
