@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Fragment, useState } from "react"
 import {
   Bar,
   BarChart,
@@ -203,9 +203,8 @@ function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric })
             {secao.hubs.map((h) => {
               const isOpen = open === h.facilityId
               return (
-                <>
+                <Fragment key={h.facilityId}>
                   <tr
-                    key={h.facilityId}
                     onClick={() => setOpen(isOpen ? null : h.facilityId)}
                     className="cursor-pointer border-b border-border transition-colors hover:bg-secondary/30"
                   >
@@ -226,7 +225,7 @@ function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric })
                     <td className="px-4 py-3 text-right text-muted-foreground">{fmtMin(h.mediaMinutos)}</td>
                   </tr>
                   {isOpen && (
-                    <tr key={`${h.facilityId}-detail`} className="border-b border-border bg-secondary/20">
+                    <tr className="border-b border-border bg-secondary/20">
                       <td colSpan={6} className="px-4 py-4">
                         <div className="overflow-x-auto">
                           <table className="w-full min-w-[560px] border-collapse text-xs">
@@ -261,7 +260,7 @@ function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric })
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               )
             })}
           </tbody>
