@@ -11,31 +11,59 @@ import type { PlanificationType, RawRoutingOrder } from "./types"
  * deploy (Vercel/preview), diferente da conexão direta ao meli-bi-data.
  *
  * Variáveis de ambiente necessárias:
- *   - GCP_SERVICE_ACCOUNT_KEY : JSON completo da service account (string).
- *   - ROUTING_CLOCK_SHEET_ID  : ID da planilha (o trecho entre /d/ e /edit na URL).
- *   - ROUTING_CLOCK_SHEET_RANGE (opcional) : ex. "Sheet1!A:M". Default: primeira aba inteira.
+ *   - GCP_CLIENT_EMAIL  : client_email da service account.
+ *   - GCP_PRIVATE_KEY   : private_key da service account.
+ *   - GOOGLE_SHEET_ID   : ID da planilha (aceita também a URL completa).
+ *   - GOOGLE_SHEET_RANGE (opcional) : ex. "Página1!A:Z". Default: primeira aba inteira (A:Z).
  *
  * A planilha deve estar compartilhada (leitura) com o e-mail da service account.
  * A primeira linha precisa conter os cabeçalhos com os mesmos nomes das colunas da query.
  */
 
 export function isSheetsConfigured(): boolean {
-  return !!process.env.GCP_SERVICE_ACCOUNT_KEY && !!process.env.ROUTING_CLOCK_SHEET_ID
+  return (
+    !!process.env.GOOGLE_SHEET_ID &&
+    !!process.env.GCP_CLIENT_EMAIL &&
+    !!process.env.GCP_PRIVATE_KEY
+  )
 }
 
-function getCredentials(): Record<string, unknown> | null {
+/**
+ * Extrai o ID da planilha. Aceita o ID puro OU a URL completa
+ * (https://docs.google.com/spreadsheets/d/<ID>/edit...).
+ */
+function extractSheetId(raw: string): string {
+  const v = (raw || "").trim()
+  const m = v.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)
+  if (m) return m[1]
+  return v
+}
+
+/**
+ * Monta a credencial a partir de GCP_CLIENT_EMAIL + GCP_PRIVATE_KEY.
+ * Também aceita o JSON completo em GCP_SERVICE_ACCOUNT_KEY (compatibilidade).
+ */
+function getCredentials(): { client_email: string; private_key: string } | null {
+  const email = process.env.GCP_CLIENT_EMAIL
+  const key = process.env.GCP_PRIVATE_KEY
+  if (email && key) {
+    return { client_email: email.trim(), private_key: key.replace(/\\n/g, "\n") }
+  }
   const raw = process.env.GCP_SERVICE_ACCOUNT_KEY
-  if (!raw) return null
-  try {
-    return JSON.parse(raw)
-  } catch {
-    // Suporta chave com \n escapados (comum ao colar em env var).
+  if (raw) {
     try {
-      return JSON.parse(raw.replace(/\\n/g, "\n"))
+      const parsed = JSON.parse(raw)
+      return { client_email: parsed.client_email, private_key: String(parsed.private_key).replace(/\\n/g, "\n") }
     } catch {
-      return null
+      try {
+        const parsed = JSON.parse(raw.replace(/\\n/g, "\n"))
+        return { client_email: parsed.client_email, private_key: parsed.private_key }
+      } catch {
+        return null
+      }
     }
   }
+  return null
 }
 
 async function getAccessToken(credentials: Record<string, unknown>): Promise<string> {
@@ -135,12 +163,18 @@ function parseValues(values: string[][]): RawRoutingOrder[] {
 /** Busca as linhas do Routing Clock a partir do Google Sheet configurado. */
 export async function fetchRowsFromSheet(): Promise<RawRoutingOrder[]> {
   const credentials = getCredentials()
-  const sheetId = process.env.ROUTING_CLOCK_SHEET_ID
-  if (!credentials || !sheetId) {
-    throw new Error("Google Sheets não configurado (GCP_SERVICE_ACCOUNT_KEY / ROUTING_CLOCK_SHEET_ID)")
+  const rawId = process.env.GOOGLE_SHEET_ID
+  if (!credentials || !rawId) {
+    throw new Error("Google Sheets não configurado (GOOGLE_SHEET_ID / GCP_CLIENT_EMAIL / GCP_PRIVATE_KEY)")
   }
 
-  const range = process.env.ROUTING_CLOCK_SHEET_RANGE || "A:M"
+  const sheetId = extractSheetId(rawId)
+
+  // Um range válido contém "!" (aba) ou ":" (colunas). Caso contrário (ex.: alguém
+  // colou um ID no campo), usamos a primeira aba inteira como padrão.
+  const rawRange = (process.env.GOOGLE_SHEET_RANGE || "").trim()
+  const range = rawRange.includes("!") || rawRange.includes(":") ? rawRange : "A:Z"
+
   const token = await getAccessToken(credentials)
 
   const url =
