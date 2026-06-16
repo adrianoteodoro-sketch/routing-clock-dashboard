@@ -93,6 +93,7 @@ function bqValue(v: unknown): string {
 function normalizeBigQueryRow(row: Record<string, unknown>): RawRoutingOrder {
   return {
     created_date: bqValue(row.created_date),
+    date_created: bqValue(row.date_created),
     created_time: bqValue(row.created_time),
     updated_date: bqValue(row.updated_date),
     updated_time: bqValue(row.updated_time),
