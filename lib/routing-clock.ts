@@ -223,8 +223,9 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
 
 function applyFilters(orders: RoutingOrder[], f: Filters): RoutingOrder[] {
   return orders.filter((o) => {
-    if (f.regional !== "TODAS" && o.regional !== f.regional) return false
-    if (f.mes !== "TODOS" && o.month !== f.mes) return false
+  if (f.regional !== "TODAS" && o.regional !== f.regional) return false
+  if (f.hub && f.hub !== "TODOS" && o.facilityId !== f.hub) return false
+  if (f.mes !== "TODOS" && o.month !== f.mes) return false
     if (f.semana !== "TODAS" && o.week !== f.semana) return false
     // Intervalo por data de roteirização (created_date)
     if (f.rotInicio && o.routingDate < f.rotInicio) return false
@@ -497,6 +498,11 @@ export function buildDashboard(
     hubAnalise: buildHubAnalise(filtered),
     opcoes: {
       regionais: uniq(orders.map((o) => o.regional)),
+      hubs: uniq(
+        orders
+          .filter((o) => filters.regional === "TODAS" || o.regional === filters.regional)
+          .map((o) => o.facilityId),
+      ),
       meses: chronoLabels("month"),
       semanas: chronoLabels("week"),
     },

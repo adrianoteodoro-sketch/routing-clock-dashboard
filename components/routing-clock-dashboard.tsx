@@ -16,6 +16,7 @@ type TabId = "geral" | "hubs"
 
 const DEFAULT_FILTERS: Filters = {
   regional: "TODAS",
+  hub: "TODOS",
   mes: "TODOS",
   semana: "TODAS",
   rotInicio: "",
@@ -33,6 +34,7 @@ export function RoutingClockDashboard() {
   const query = useMemo(() => {
     const sp = new URLSearchParams({
       regional: filters.regional,
+      hub: filters.hub,
       mes: filters.mes,
       semana: filters.semana,
       rotInicio: filters.rotInicio,
@@ -59,7 +61,12 @@ export function RoutingClockDashboard() {
   }, [data, isValidating])
 
   const handleFilterChange = (next: Partial<Filters>) => {
-    setFilters((prev) => ({ ...prev, ...next }))
+    setFilters((prev) => {
+      const merged = { ...prev, ...next }
+      // Ao trocar de regional, zera o HUB para evitar combinação inválida.
+      if (next.regional && next.regional !== prev.regional) merged.hub = "TODOS"
+      return merged
+    })
   }
 
   // "Atualizar Dados": força a Connected Sheet a re-consultar o BigQuery (refresh=1)

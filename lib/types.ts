@@ -72,6 +72,7 @@ export interface RangeSeveridade {
 
 export interface Filters {
   regional: string
+  hub: string
   mes: string
   semana: string
   // Filtro por data de roteirização (created_date) - "YYYY-MM-DD" ou "" (sem filtro)
@@ -97,6 +98,7 @@ export interface Kpis {
 
 export interface DashboardOpcoes {
   regionais: string[]
+  hubs: string[]
   meses: string[]
   semanas: string[]
 }
