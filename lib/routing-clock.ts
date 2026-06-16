@@ -3,6 +3,7 @@ import type {
   Filters,
   HubAnalise,
   HubAnaliseSecao,
+  HubDiaResumo,
   HubResumo,
   Ofensor,
   RangeSeveridade,
@@ -154,7 +155,8 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
 
     const durationMinutes = hhmmToMinutes(r.time_to_update)
     const tmrMinutes = hhmmToMinutes(r.TMR_Routing)
-    const tmrTargetMinutes = hhmmToMinutes(r.TMR_Routing_30pct)
+    // TMR executado (coluna TMR_Routing_Exec) = medida de aderência ao routing clock.
+    const tmrTargetMinutes = hhmmToMinutes(r.TMR_Routing_Exec)
 
     // Classificação de TMR
     let tmrState: RoutingOrder["tmrState"]
@@ -353,17 +355,50 @@ function buildRangeSeveridade(orders: RoutingOrder[]): RangeSeveridade[] {
 
 type HubMetric = "atraso" | "estouro"
 
+/** Agrega os roteiros de um HUB por dia de coleta (atraso + TMR juntos). */
+function buildAberturaDiaria(all: RoutingOrder[]): HubDiaResumo[] {
+  const map = new Map<string, RoutingOrder[]>()
+  for (const o of all) {
+    if (!map.has(o.collectionDate)) map.set(o.collectionDate, [])
+    map.get(o.collectionDate)!.push(o)
+  }
+
+  const avg = (nums: number[]) => (nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0)
+  const avgPos = (nums: number[]) => avg(nums.filter((n) => n > 0))
+  const max = (nums: number[]) => nums.reduce((a, b) => Math.max(a, b), 0)
+
+  return [...map.entries()]
+    .map(([dia, list]) => {
+      const atrasados = list.filter((o) => !o.withinDeadline)
+      const estourados = list.filter((o) => o.tmrState === "estouro")
+      return {
+        dia,
+        total: list.length,
+        atrasos: atrasados.length,
+        atrasoMedioMin: avg(atrasados.map((o) => o.minutesLate)),
+        atrasoPiorMin: max(list.map((o) => o.minutesLate)),
+        tmrMedioMin: avg(list.map((o) => o.durationMinutes)),
+        // TMR de aderência ao routing clock (coluna TMR_Routing_Exec). Média só dos roteiros com valor definido (>0).
+        tmrAlvoMin: avgPos(list.map((o) => o.tmrTargetMinutes)),
+        estouros: estourados.length,
+        excessoPiorMin: max(list.map((o) => o.tmrExcessMinutes)),
+      }
+    })
+    .sort((a, b) => a.dia.localeCompare(b.dia))
+}
+
 function buildHubSecao(orders: RoutingOrder[], metric: HubMetric): HubAnaliseSecao {
   // Predicado e magnitude (minutos) de cada métrica.
   const matches = (o: RoutingOrder) => (metric === "atraso" ? !o.withinDeadline : o.tmrState === "estouro")
   const magnitude = (o: RoutingOrder) => (metric === "atraso" ? o.minutesLate : o.tmrExcessMinutes)
 
-  // Agrupamento por HUB
-  const hubMap = new Map<string, { regional: string; total: number; hits: RoutingOrder[] }>()
+  // Agrupamento por HUB - guardamos TODOS os roteiros (all) para a abertura diária
+  const hubMap = new Map<string, { regional: string; total: number; hits: RoutingOrder[]; all: RoutingOrder[] }>()
   for (const o of orders) {
-    if (!hubMap.has(o.facilityId)) hubMap.set(o.facilityId, { regional: o.regional, total: 0, hits: [] })
+    if (!hubMap.has(o.facilityId)) hubMap.set(o.facilityId, { regional: o.regional, total: 0, hits: [], all: [] })
     const g = hubMap.get(o.facilityId)!
     g.total += 1
+    g.all.push(o)
     if (matches(o)) g.hits.push(o)
   }
 
@@ -395,6 +430,7 @@ function buildHubSecao(orders: RoutingOrder[], metric: HubMetric): HubAnaliseSec
         piorMinutos,
         mediaMinutos,
         detalhes,
+        abertura: buildAberturaDiaria(g.all),
       }
     })
     .sort((a, b) => b.ocorrencias - a.ocorrencias || b.pct - a.pct)

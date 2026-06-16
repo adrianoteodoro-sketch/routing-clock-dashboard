@@ -6,13 +6,17 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   LabelList,
+  Legend,
+  Line,
   ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
 } from "recharts"
 import { AlertTriangle, ChevronDown, ChevronRight, Clock, MapPin, Timer } from "lucide-react"
-import type { HubAnalise, HubAnaliseSecao, HubResumo } from "@/lib/types"
+import type { HubAnalise, HubAnaliseSecao, HubDiaResumo, HubResumo } from "@/lib/types"
 
 const DANGER = "oklch(0.58 0.23 18)"
 const WARNING = "oklch(0.82 0.16 85)"
@@ -164,6 +168,113 @@ function RegionalBreakdown({ secao }: { secao: HubAnaliseSecao }) {
   )
 }
 
+/** Abertura por dia de um HUB: mini-gráfico + tabela (atrasos + TMR juntos). */
+function DailyBreakdown({ abertura, metric }: { abertura: HubDiaResumo[]; metric: Metric }) {
+  if (abertura.length === 0) {
+    return <p className="py-6 text-center text-sm italic text-muted-foreground">Sem dias no período</p>
+  }
+
+  const chartData = abertura.map((d) => ({
+    dia: fmtDay(d.dia),
+    Atrasos: d.atrasos,
+    Estouros: d.estouros,
+    "TMR médio (h)": Number((d.tmrMedioMin / 60).toFixed(2)),
+  }))
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Mini-gráfico: barras de ocorrências + linha de TMR médio */}
+      <div className="rounded-xl border border-border bg-card p-3">
+        <ResponsiveContainer width="100%" height={200}>
+          <ComposedChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="oklch(0.92 0.004 247)" />
+            <XAxis dataKey="dia" tickLine={false} axisLine={false} tick={{ fill: MUTED, fontSize: 10 }} />
+            <YAxis
+              yAxisId="left"
+              tickLine={false}
+              axisLine={false}
+              tick={{ fill: MUTED, fontSize: 10 }}
+              allowDecimals={false}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tickLine={false}
+              axisLine={false}
+              tick={{ fill: MUTED, fontSize: 10 }}
+              unit="h"
+            />
+            <Tooltip
+              contentStyle={{
+                borderRadius: 12,
+                border: "1px solid oklch(0.92 0.004 247)",
+                fontSize: 12,
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Bar yAxisId="left" dataKey="Atrasos" radius={[4, 4, 0, 0]} maxBarSize={26} fill={DANGER} />
+            <Bar yAxisId="left" dataKey="Estouros" radius={[4, 4, 0, 0]} maxBarSize={26} fill={WARNING} />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="TMR médio (h)"
+              stroke={MUTED}
+              strokeWidth={2}
+              dot={{ r: 3 }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Tabela diária */}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] border-collapse text-xs">
+          <thead>
+            <tr className="text-left text-muted-foreground">
+              <th className="px-3 py-2 font-semibold uppercase tracking-wide">Dia (coleta)</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Roteiros</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Atrasos</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Atraso médio</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Pior atraso</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">TMR médio</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">TMR alvo</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Estouros</th>
+            </tr>
+          </thead>
+          <tbody>
+            {abertura.map((d) => {
+              const temAtraso = d.atrasos > 0
+              const temEstouro = d.estouros > 0
+              return (
+                <tr key={d.dia} className="border-t border-border/60">
+                  <td className="px-3 py-2 font-medium text-foreground">{fmtDay(d.dia)}</td>
+                  <td className="px-3 py-2 text-right text-muted-foreground">{d.total}</td>
+                  <td className={`px-3 py-2 text-right font-bold ${temAtraso ? "text-danger" : "text-muted-foreground"}`}>
+                    {d.atrasos}
+                  </td>
+                  <td className="px-3 py-2 text-right text-muted-foreground">
+                    {temAtraso ? fmtMin(d.atrasoMedioMin) : "-"}
+                  </td>
+                  <td className="px-3 py-2 text-right text-muted-foreground">
+                    {temAtraso ? fmtMin(d.atrasoPiorMin) : "-"}
+                  </td>
+                  <td className="px-3 py-2 text-right font-semibold text-foreground">{fmtMin(d.tmrMedioMin)}</td>
+                  <td className="px-3 py-2 text-right text-muted-foreground">{fmtMin(d.tmrAlvoMin)}</td>
+                  <td
+                    className={`px-3 py-2 text-right font-bold ${temEstouro ? "text-warning" : "text-muted-foreground"}`}
+                  >
+                    {d.estouros}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 /** Tabela de HUBs com drill-down por roteiro. */
 function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric }) {
   const [open, setOpen] = useState<string | null>(null)
@@ -241,35 +352,53 @@ function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric })
                   {isOpen && (
                     <tr className="border-b border-border bg-secondary/20">
                       <td colSpan={7} className="px-4 py-4">
-                        <div className="overflow-x-auto">
-                          <table className="w-full min-w-[560px] border-collapse text-xs">
-                            <thead>
-                              <tr className="text-left text-muted-foreground">
-                                <th className="px-3 py-2 font-semibold uppercase tracking-wide">Coleta</th>
-                                <th className="px-3 py-2 font-semibold uppercase tracking-wide">Tipo</th>
-                                <th className="px-3 py-2 font-semibold uppercase tracking-wide">Prazo</th>
-                                <th className="px-3 py-2 font-semibold uppercase tracking-wide">Publicado</th>
-                                <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">
-                                  {magLabel}
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {h.detalhes.map((d, i) => (
-                                <tr key={i} className="border-t border-border/60">
-                                  <td className="px-3 py-2 font-medium text-foreground">{fmtDay(d.collectionDate)}</td>
-                                  <td className="px-3 py-2 text-muted-foreground">
-                                    {d.planificationType === "tactical" ? "W-1" : "D-1"}
-                                  </td>
-                                  <td className="px-3 py-2 text-muted-foreground">{fmtDate(d.deadline)}</td>
-                                  <td className="px-3 py-2 text-muted-foreground">{fmtDate(d.publishedAt)}</td>
-                                  <td className="px-3 py-2 text-right font-bold text-danger">
-                                    {metric === "atraso" ? fmtMin(d.minutesLate) : fmtMin(d.tmrExcessMinutes)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                        <div className="flex flex-col gap-5">
+                          {/* Abertura por dia: atrasos + TMR juntos com mini-gráfico */}
+                          <div>
+                            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                              Abertura por dia — {h.facilityId}
+                            </p>
+                            <DailyBreakdown abertura={h.abertura} metric={metric} />
+                          </div>
+
+                          {/* Roteiros individuais com a ocorrência */}
+                          <div>
+                            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                              Roteiros com {metric === "atraso" ? "atraso" : "estouro de TMR"}
+                            </p>
+                            <div className="overflow-x-auto">
+                              <table className="w-full min-w-[560px] border-collapse text-xs">
+                                <thead>
+                                  <tr className="text-left text-muted-foreground">
+                                    <th className="px-3 py-2 font-semibold uppercase tracking-wide">Coleta</th>
+                                    <th className="px-3 py-2 font-semibold uppercase tracking-wide">Tipo</th>
+                                    <th className="px-3 py-2 font-semibold uppercase tracking-wide">Prazo</th>
+                                    <th className="px-3 py-2 font-semibold uppercase tracking-wide">Publicado</th>
+                                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">
+                                      {magLabel}
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {h.detalhes.map((d, i) => (
+                                    <tr key={i} className="border-t border-border/60">
+                                      <td className="px-3 py-2 font-medium text-foreground">
+                                        {fmtDay(d.collectionDate)}
+                                      </td>
+                                      <td className="px-3 py-2 text-muted-foreground">
+                                        {d.planificationType === "tactical" ? "W-1" : "D-1"}
+                                      </td>
+                                      <td className="px-3 py-2 text-muted-foreground">{fmtDate(d.deadline)}</td>
+                                      <td className="px-3 py-2 text-muted-foreground">{fmtDate(d.publishedAt)}</td>
+                                      <td className="px-3 py-2 text-right font-bold text-danger">
+                                        {metric === "atraso" ? fmtMin(d.minutesLate) : fmtMin(d.tmrExcessMinutes)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -284,8 +413,11 @@ function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric })
   )
 }
 
-function Section({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric }) {
+function Section({ secao, metric, selectedHub }: { secao: HubAnaliseSecao; metric: Metric; selectedHub?: string }) {
   const isAtraso = metric === "atraso"
+  // Quando um HUB específico está selecionado no filtro, destacamos sua abertura diária.
+  const focado =
+    selectedHub && selectedHub !== "TODOS" ? secao.hubs.find((h) => h.facilityId === selectedHub) : undefined
   return (
     <section className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
@@ -337,17 +469,37 @@ function Section({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric }) 
         <RegionalBreakdown secao={secao} />
       </div>
 
+      {focado && (
+        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              {isAtraso ? <Clock className="h-5 w-5" /> : <Timer className="h-5 w-5" />}
+            </div>
+            <div>
+              <h3 className="text-base font-bold uppercase tracking-tight text-foreground">
+                Abertura por dia — {focado.facilityId}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {focado.regional} · {focado.ocorrencias} {isAtraso ? "atrasos" : "estouros"} em{" "}
+                {focado.total.toLocaleString("pt-BR")} roteiros
+              </p>
+            </div>
+          </div>
+          <DailyBreakdown abertura={focado.abertura} metric={metric} />
+        </div>
+      )}
+
       <HubTable secao={secao} metric={metric} />
     </section>
   )
 }
 
-export function HubAnalysis({ data }: { data: HubAnalise }) {
+export function HubAnalysis({ data, selectedHub }: { data: HubAnalise; selectedHub?: string }) {
   return (
     <div className="flex flex-col gap-10">
-      <Section secao={data.atraso} metric="atraso" />
+      <Section secao={data.atraso} metric="atraso" selectedHub={selectedHub} />
       <div className="h-px w-full bg-border" />
-      <Section secao={data.estouro} metric="estouro" />
+      <Section secao={data.estouro} metric="estouro" selectedHub={selectedHub} />
     </div>
   )
 }
