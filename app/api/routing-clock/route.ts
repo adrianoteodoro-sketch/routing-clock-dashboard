@@ -1,9 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { fetchRoutingOrders } from "@/lib/bigquery"
+import { refreshSheetDataSources } from "@/lib/google-sheets"
 import { buildDashboard, processRows } from "@/lib/routing-clock"
 import type { Filters } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
+// Refresh da Connected Sheet + re-consulta ao BigQuery pode levar dezenas de segundos.
+export const maxDuration = 60
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
@@ -18,6 +21,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // Ao clicar em "Atualizar Dados" (refresh=1), força a Connected Sheet a
+    // re-consultar o BigQuery antes de ler os valores.
+    if (sp.get("refresh") === "1") {
+      try {
+        await refreshSheetDataSources()
+      } catch (e) {
+        console.log("[v0] Falha ao atualizar Connected Sheet:", (e as Error).message)
+      }
+    }
+
     const { rows, fonte } = await fetchRoutingOrders()
     const orders = processRows(rows)
     const data = buildDashboard(orders, filters, fonte)
