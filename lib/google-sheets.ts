@@ -1,5 +1,6 @@
 import { GoogleAuth } from "google-auth-library"
 import type { PlanificationType, RawRoutingOrder } from "./types"
+import { regionalForHub } from "./hubs"
 
 /**
  * Leitura automatizada do Routing Clock First Mile a partir de um Google Sheet.
@@ -148,7 +149,8 @@ function parseValues(values: string[][]): RawRoutingOrder[] {
       updated_time: normalizeTime(row[iUpdatedTime] ?? ""),
       time_to_update: normalizeHHMM(row[iTimeToUpdate] ?? ""),
       SHP_FACILITY_ID: facility,
-      Regional: (row[iRegional] ?? "").trim() || "OUTROS",
+      // Usa a coluna Regional da planilha se existir; senão deriva do HUB.
+      Regional: (iRegional >= 0 ? (row[iRegional] ?? "").trim() : "") || regionalForHub(facility),
       RTG_ORD_PLAN_LOCAL_DATE: normalizeDate(row[iPlanDate] ?? ""),
       RTG_ORD_STATUS: (row[iStatus] ?? "").trim(),
       date_created: normalizeDate(row[iCreatedDate] ?? ""),
