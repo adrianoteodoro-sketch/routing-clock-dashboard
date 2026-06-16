@@ -139,6 +139,12 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
   const result: RoutingOrder[] = []
 
   for (const r of rows) {
+    // Regional do roteiro: usa a coluna da planilha/query ou deriva do HUB.
+    const regional = r.Regional || regionalForHub(r.SHP_FACILITY_ID)
+
+    // Facilities sem regional mapeada (ex.: BRXSP6) ficam fora do dashboard.
+    if (regional === "N/D") continue
+
     const durationMinutes = hhmmToMinutes(r.time_to_update)
     const tmrMinutes = hhmmToMinutes(r.TMR_Routing)
     const tmrTargetMinutes = hhmmToMinutes(r.TMR_Routing_30pct)
@@ -153,7 +159,12 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
     const collectionDate = new Date(`${r.RTG_ORD_PLAN_LOCAL_DATE}T00:00:00`)
     const publishedAt = parseDateTime(r.updated_date, r.updated_time)
     const deadline = getDeadline(collectionDate, r.planification_type)
-    const withinDeadline = deadline ? publishedAt.getTime() <= deadline.getTime() : true
+
+    // Ordens sem regra de prazo (ex.: coleta no domingo) ficam fora do Routing Clock:
+    // não contam no volume nem na performance, evitando inflar o indicador.
+    if (!deadline) continue
+
+    const withinDeadline = publishedAt.getTime() <= deadline.getTime()
 
     // Aderente ao Routing Clock = publicado dentro do prazo
     const isAdherent = withinDeadline
@@ -182,7 +193,7 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
       tmrState,
       withinDeadline,
       isAdherent,
-      regional: r.Regional || regionalForHub(r.SHP_FACILITY_ID),
+      regional,
       month: `${created.getFullYear()}/${created.getMonth() + 1}`,
       week: `W${isoWeek(created)}`,
       reason,
@@ -317,26 +328,37 @@ function buildRangeSeveridade(orders: RoutingOrder[]): RangeSeveridade[] {
     .filter((f) => f.ocorrencias > 0)
 }
 
-export function buildDashboard(orders: RoutingOrder[], filters: Filters, fonte: "bigquery" | "mock"): DashboardData {
+export function buildDashboard(
+  orders: RoutingOrder[],
+  filters: Filters,
+  fonte: "bigquery" | "sheets" | "mock",
+): DashboardData {
   const filtered = applyFilters(orders, filters)
 
   const mensal = buildSerie(filtered, "month")
   const semanal = buildSerie(filtered, "week")
 
   const performanceAtual = perf(filtered)
-  // Período anterior = penúltima semana vs última, quando disponível
-  const performanceAnterior = semanal.length >= 2 ? semanal[semanal.length - 2].performance : performanceAtual
   const volumeTotal = filtered.length
-  const volumeAnterior = semanal.length >= 2 ? semanal[semanal.length - 2].volume : volumeTotal
+
+  // Tendência semana a semana: última semana vs penúltima (períodos comparáveis).
+  const ultima = semanal[semanal.length - 1]
+  const penultima = semanal[semanal.length - 2]
+  const perfUltimaSemana = ultima ? ultima.performance : Number(performanceAtual.toFixed(2))
+  const perfSemanaAnterior = penultima ? penultima.performance : perfUltimaSemana
+  const volumeUltimaSemana = ultima ? ultima.volume : 0
+  const volumeSemanaAnterior = penultima ? penultima.volume : volumeUltimaSemana
 
   const kpis = {
     performanceAtual: Number(performanceAtual.toFixed(2)),
-    performanceAnterior: Number(performanceAnterior.toFixed(2)),
     volumeTotal,
-    volumeAnterior,
     meta: META_PERFORMANCE,
     gapPp: Number((performanceAtual - META_PERFORMANCE).toFixed(2)),
     metaAtingida: performanceAtual >= META_PERFORMANCE,
+    perfUltimaSemana,
+    perfSemanaAnterior,
+    volumeUltimaSemana,
+    volumeSemanaAnterior,
   }
 
   const uniq = (arr: string[]) => [...new Set(arr)].filter(Boolean).sort()

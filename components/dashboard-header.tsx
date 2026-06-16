@@ -5,9 +5,20 @@ import { LayoutGrid, RefreshCw, Package } from "lucide-react"
 interface DashboardHeaderProps {
   onRefresh: () => void
   refreshing: boolean
+  lastUpdated: Date | null
 }
 
-export function DashboardHeader({ onRefresh, refreshing }: DashboardHeaderProps) {
+function formatTimestamp(date: Date) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)
+}
+
+export function DashboardHeader({ onRefresh, refreshing, lastUpdated }: DashboardHeaderProps) {
   return (
     <>
       {/* Barra de marca Mercado Livre */}
@@ -40,14 +51,23 @@ export function DashboardHeader({ onRefresh, refreshing }: DashboardHeaderProps)
             </div>
           </div>
 
-          <button
-            onClick={onRefresh}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 self-start rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-accent disabled:opacity-60 sm:self-auto"
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Atualizar Dados
-          </button>
+          <div className="flex flex-col items-start gap-1.5 sm:items-end">
+            <button
+              onClick={onRefresh}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 self-start rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-accent disabled:opacity-60 sm:self-auto"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              Atualizar Dados
+            </button>
+            <p className="text-xs text-muted-foreground">
+              {refreshing
+                ? "Atualizando..."
+                : lastUpdated
+                  ? `Última atualização: ${formatTimestamp(lastUpdated)}`
+                  : "Aguardando dados..."}
+            </p>
+          </div>
         </div>
       </div>
     </>
