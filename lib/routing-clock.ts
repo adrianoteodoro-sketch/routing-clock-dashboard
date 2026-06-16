@@ -363,6 +363,7 @@ function buildAberturaDiaria(all: RoutingOrder[]): HubDiaResumo[] {
   }
 
   const avg = (nums: number[]) => (nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0)
+  const avgPos = (nums: number[]) => avg(nums.filter((n) => n > 0))
   const max = (nums: number[]) => nums.reduce((a, b) => Math.max(a, b), 0)
 
   return [...map.entries()]
@@ -376,7 +377,8 @@ function buildAberturaDiaria(all: RoutingOrder[]): HubDiaResumo[] {
         atrasoMedioMin: avg(atrasados.map((o) => o.minutesLate)),
         atrasoPiorMin: max(list.map((o) => o.minutesLate)),
         tmrMedioMin: avg(list.map((o) => o.durationMinutes)),
-        tmrAlvoMin: avg(list.map((o) => o.tmrTargetMinutes)),
+        // TMR alvo base (TMR_Routing). Média só dos roteiros com alvo definido (>0).
+        tmrAlvoMin: avgPos(list.map((o) => o.tmrMinutes)),
         estouros: estourados.length,
         excessoPiorMin: max(list.map((o) => o.tmrExcessMinutes)),
       }
