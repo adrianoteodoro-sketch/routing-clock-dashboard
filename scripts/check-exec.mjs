@@ -1,6 +1,6 @@
-import { fetchFromSheets } from "../lib/google-sheets.ts"
+import { fetchRowsFromSheet } from "../lib/google-sheets.ts"
 
-const rows = await fetchFromSheets()
+const rows = await fetchRowsFromSheet()
 console.log("Total linhas:", rows.length)
 
 // Conta por facility quantas têm TMR_Routing_Exec vazio vs preenchido
@@ -17,9 +17,12 @@ console.log("Facilities com Exec vazio:", facsVazio.slice(0, 20))
 const distinct = [...new Set(rows.map((r) => r.TMR_Routing_Exec))]
 console.log("Valores distintos de TMR_Routing_Exec (amostra):", distinct.slice(0, 15))
 
-// Amostra de uma facility com Exec vazio
-if (facsVazio.length > 0) {
-  const f = facsVazio[0]
-  const sample = rows.filter((r) => r.SHP_FACILITY_ID === f).slice(0, 3)
-  console.log(`Amostra da facility ${f}:`, sample.map((r) => ({ ttu: r.time_to_update, tmr: r.TMR_Routing, exec: r.TMR_Routing_Exec })))
-}
+// BRXSP10: TMR_Routing_Exec varia por linha? Como se relaciona com time_to_update e TMR_Routing?
+const brx = rows.filter((r) => r.SHP_FACILITY_ID === "BRXSP10")
+console.log("BRXSP10 linhas:", brx.length)
+console.log("BRXSP10 TMR_Routing distintos:", [...new Set(brx.map((r) => r.TMR_Routing))])
+console.log("BRXSP10 TMR_Routing_Exec distintos:", [...new Set(brx.map((r) => r.TMR_Routing_Exec))].slice(0, 12))
+console.log(
+  "BRXSP10 amostra (ttu / TMR_Routing / TMR_Routing_Exec):",
+  brx.slice(0, 8).map((r) => `${r.time_to_update} / ${r.TMR_Routing} / ${r.TMR_Routing_Exec}`),
+)
