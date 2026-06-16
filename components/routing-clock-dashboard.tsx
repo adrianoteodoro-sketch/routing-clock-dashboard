@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { FiltersBar } from "@/components/filters-bar"
@@ -44,13 +44,22 @@ export function RoutingClockDashboard() {
     revalidateOnFocus: false,
   })
 
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+
+  // Atualiza o horário sempre que novos dados chegam com sucesso.
+  useEffect(() => {
+    if (data && !isValidating) {
+      setLastUpdated(new Date())
+    }
+  }, [data, isValidating])
+
   const handleFilterChange = (next: Partial<Filters>) => {
     setFilters((prev) => ({ ...prev, ...next }))
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader onRefresh={() => mutate()} refreshing={isValidating} />
+      <DashboardHeader onRefresh={() => mutate()} refreshing={isValidating} lastUpdated={lastUpdated} />
 
       <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6">
         {data && (
