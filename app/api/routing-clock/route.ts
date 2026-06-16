@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
   const filters: Filters = {
     regional: sp.get("regional") ?? "TODAS",
+    hub: sp.get("hub") ?? "TODOS",
     mes: sp.get("mes") ?? "TODOS",
     semana: sp.get("semana") ?? "TODAS",
     rotInicio: sp.get("rotInicio") ?? "",

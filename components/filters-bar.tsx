@@ -110,6 +110,14 @@ export function FiltersBar({ filters, opcoes, onChange }: FiltersBarProps) {
             highlight
           />
           <FilterSelect
+            label="HUB"
+            value={filters.hub}
+            allLabel="TODOS"
+            options={opcoes.hubs}
+            onChange={(v) => onChange({ hub: v })}
+            highlight
+          />
+          <FilterSelect
             label="Mês"
             value={filters.mes}
             allLabel="TODOS"

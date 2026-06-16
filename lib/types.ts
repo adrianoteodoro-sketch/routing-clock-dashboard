@@ -26,9 +26,12 @@ export interface RoutingOrder {
   collectionDate: string // YYYY-MM-DD - data de coleta planejada
   routingDate: string // YYYY-MM-DD - data de início da roteirização
   publishedAt: string
+  deadline: string // ISO - data/hora limite de publicação
+  minutesLate: number // minutos publicados após o prazo (0 se dentro do prazo)
   durationMinutes: number
   tmrMinutes: number
   tmrTargetMinutes: number
+  tmrExcessMinutes: number // minutos da duração que excedem o TMR Alvo (0 se ok)
   tmrState: TmrState
   withinDeadline: boolean
   isAdherent: boolean
@@ -69,6 +72,7 @@ export interface RangeSeveridade {
 
 export interface Filters {
   regional: string
+  hub: string
   mes: string
   semana: string
   // Filtro por data de roteirização (created_date) - "YYYY-MM-DD" ou "" (sem filtro)
@@ -94,8 +98,60 @@ export interface Kpis {
 
 export interface DashboardOpcoes {
   regionais: string[]
+  hubs: string[]
   meses: string[]
   semanas: string[]
+}
+
+// ----------------------------------------------------------------------------
+// Análise por HUB (aba "Análise de HUBs")
+// ----------------------------------------------------------------------------
+
+/** Um roteiro individual com problema, usado no drill-down por HUB. */
+export interface HubRoteiroDetalhe {
+  collectionDate: string
+  routingDate: string
+  planificationType: PlanificationType
+  publishedAt: string
+  deadline: string
+  minutesLate: number
+  durationMinutes: number
+  tmrTargetMinutes: number
+  tmrExcessMinutes: number
+}
+
+/** Resumo de um HUB para uma das seções (Atraso ou Estouro de TMR). */
+export interface HubResumo {
+  facilityId: string
+  regional: string
+  total: number // total de roteiros do HUB no período
+  ocorrencias: number // qtde de roteiros fora do prazo OU em estouro
+  pct: number // ocorrencias / total * 100
+  piorMinutos: number // maior atraso (min) ou maior excesso de TMR (min)
+  mediaMinutos: number // média de atraso/excesso entre as ocorrências
+  detalhes: HubRoteiroDetalhe[] // roteiros problemáticos (drill-down)
+}
+
+/** Resumo agregado por regional para uma das seções. */
+export interface RegionalResumo {
+  regional: string
+  total: number
+  ocorrencias: number
+  pct: number
+}
+
+/** Bloco completo de uma seção (Atraso ou Estouro de TMR). */
+export interface HubAnaliseSecao {
+  totalRoteiros: number
+  totalOcorrencias: number
+  pctOcorrencias: number
+  hubs: HubResumo[]
+  regionais: RegionalResumo[]
+}
+
+export interface HubAnalise {
+  atraso: HubAnaliseSecao
+  estouro: HubAnaliseSecao
 }
 
 export interface DashboardData {
@@ -105,6 +161,7 @@ export interface DashboardData {
   waterfall: WaterfallPonto[]
   ofensores: Ofensor[]
   rangeSeveridade: RangeSeveridade[]
+  hubAnalise: HubAnalise
   opcoes: DashboardOpcoes
   fonte: "bigquery" | "sheets" | "mock"
 }
