@@ -232,20 +232,24 @@ function perf(orders: RoutingOrder[]): number {
 }
 
 function buildSerie(orders: RoutingOrder[], key: "month" | "week"): SeriePonto[] {
-  const groups = new Map<string, RoutingOrder[]>()
+  // Agrupa por mês/semana guardando a MENOR data de roteirização do grupo,
+  // para ordenar cronologicamente mesmo quando os dados cruzam a virada de ano
+  // (ex.: roteirização W-1 em dez/2025 -> semana "W52" que pertence ao início,
+  // não ao fim, da série de 2026).
+  const groups = new Map<string, { items: RoutingOrder[]; minDate: string }>()
   for (const o of orders) {
     const k = o[key]
-    if (!groups.has(k)) groups.set(k, [])
-    groups.get(k)!.push(o)
+    if (!groups.has(k)) groups.set(k, { items: [], minDate: o.routingDate })
+    const g = groups.get(k)!
+    g.items.push(o)
+    if (o.routingDate < g.minDate) g.minDate = o.routingDate
   }
-  const sortKey = (label: string) =>
-    key === "week" ? Number.parseInt(label.replace("W", ""), 10) : Number.parseInt(label.split("/")[1], 10)
   return [...groups.entries()]
-    .sort((a, b) => sortKey(a[0]) - sortKey(b[0]))
-    .map(([label, items]) => ({
+    .sort((a, b) => (a[1].minDate < b[1].minDate ? -1 : a[1].minDate > b[1].minDate ? 1 : 0))
+    .map(([label, g]) => ({
       label,
-      performance: Number(perf(items).toFixed(2)),
-      volume: items.length,
+      performance: Number(perf(g.items).toFixed(2)),
+      volume: g.items.length,
       meta: META_PERFORMANCE,
     }))
 }
@@ -366,6 +370,23 @@ export function buildDashboard(
 
   const uniq = (arr: string[]) => [...new Set(arr)].filter(Boolean).sort()
 
+  // Ordena meses/semanas cronologicamente pela MENOR data de roteirização de cada
+  // grupo (mesmo critério das séries), para que dez/2025 (W52) fique no início.
+  const chronoLabels = (k: "month" | "week") => {
+    const minDate = new Map<string, string>()
+    for (const o of orders) {
+      const label = o[k]
+      if (!label) continue
+      const cur = minDate.get(label)
+      if (!cur || o.routingDate < cur) minDate.set(label, o.routingDate)
+    }
+    return [...minDate.keys()].sort((a, b) => {
+      const da = minDate.get(a)!
+      const db = minDate.get(b)!
+      return da < db ? -1 : da > db ? 1 : 0
+    })
+  }
+
   return {
     kpis,
     mensal,
@@ -375,12 +396,8 @@ export function buildDashboard(
     rangeSeveridade: buildRangeSeveridade(filtered),
     opcoes: {
       regionais: uniq(orders.map((o) => o.regional)),
-      meses: uniq(orders.map((o) => o.month)).sort(
-        (a, b) => Number.parseInt(a.split("/")[1]) - Number.parseInt(b.split("/")[1]),
-      ),
-      semanas: uniq(orders.map((o) => o.week)).sort(
-        (a, b) => Number.parseInt(a.replace("W", "")) - Number.parseInt(b.replace("W", "")),
-      ),
+      meses: chronoLabels("month"),
+      semanas: chronoLabels("week"),
     },
     fonte,
   }
