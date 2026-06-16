@@ -120,6 +120,19 @@ export interface HubRoteiroDetalhe {
   tmrExcessMinutes: number
 }
 
+/** Abertura diária de um HUB (atraso + TMR juntos). */
+export interface HubDiaResumo {
+  dia: string // YYYY-MM-DD (data de coleta)
+  total: number // roteiros do dia
+  atrasos: number // roteiros fora do prazo no dia
+  atrasoMedioMin: number // atraso médio (min) entre os atrasados do dia
+  atrasoPiorMin: number // maior atraso (min) do dia
+  tmrMedioMin: number // TMR médio (duração) do dia
+  tmrAlvoMin: number // TMR alvo médio do dia
+  estouros: number // roteiros com estouro de TMR no dia
+  excessoPiorMin: number // maior excesso de TMR (min) do dia
+}
+
 /** Resumo de um HUB para uma das seções (Atraso ou Estouro de TMR). */
 export interface HubResumo {
   facilityId: string
@@ -130,6 +143,7 @@ export interface HubResumo {
   piorMinutos: number // maior atraso (min) ou maior excesso de TMR (min)
   mediaMinutos: number // média de atraso/excesso entre as ocorrências
   detalhes: HubRoteiroDetalhe[] // roteiros problemáticos (drill-down)
+  abertura: HubDiaResumo[] // abertura por dia (atraso + TMR), ordenada por dia
 }
 
 /** Resumo agregado por regional para uma das seções. */

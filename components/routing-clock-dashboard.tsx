@@ -140,7 +140,7 @@ export function RoutingClockDashboard() {
             </div>
           </>
         ) : (
-          <HubAnalysis data={data.hubAnalise} />
+          <HubAnalysis data={data.hubAnalise} selectedHub={filters.hub} />
         )}
       </main>
     </div>
