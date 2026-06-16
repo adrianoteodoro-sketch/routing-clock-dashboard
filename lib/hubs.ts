@@ -5,6 +5,7 @@ export const HUB_TO_REGIONAL: Record<string, string> = {
   ARENA: "MEGAS",
   BRXSP10: "MEGAS",
   BRXSP18: "MEGAS",
+  BRXSP6: "MEGAS",
   BRXBA1: "NONECO",
   BRXPE1: "NONECO",
   BRXCE1: "NONECO",
