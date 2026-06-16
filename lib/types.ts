@@ -80,13 +80,16 @@ export interface Filters {
 }
 
 export interface Kpis {
-  performanceAtual: number
-  performanceAnterior: number
-  volumeTotal: number
-  volumeAnterior: number
+  performanceAtual: number // headline - performance de todo o período filtrado
+  volumeTotal: number // headline - total de roteiros no período filtrado
   meta: number
   gapPp: number
   metaAtingida: boolean
+  // Tendência semana a semana (última semana completa vs a anterior) - comparável
+  perfUltimaSemana: number
+  perfSemanaAnterior: number
+  volumeUltimaSemana: number
+  volumeSemanaAnterior: number
 }
 
 export interface DashboardOpcoes {

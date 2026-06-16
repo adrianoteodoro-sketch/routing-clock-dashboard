@@ -11,12 +11,12 @@ function variation(current: number, previous: number): { text: string; positive:
   if (previous === 0) return { text: "—", positive: true }
   const pct = ((current - previous) / Math.abs(previous)) * 100
   const positive = pct >= 0
-  return { text: `${positive ? "+" : ""}${pct.toFixed(2)}% vs anterior`, positive }
+  return { text: `${positive ? "+" : ""}${pct.toFixed(2)}% vs sem. anterior`, positive }
 }
 
 export function KpiCards({ kpis }: { kpis: Kpis }) {
-  const perfVar = variation(kpis.performanceAtual, kpis.performanceAnterior)
-  const volVar = variation(kpis.volumeTotal, kpis.volumeAnterior)
+  const perfVar = variation(kpis.perfUltimaSemana, kpis.perfSemanaAnterior)
+  const volVar = variation(kpis.volumeUltimaSemana, kpis.volumeSemanaAnterior)
   const gapPositive = kpis.gapPp >= 0
 
   return (
