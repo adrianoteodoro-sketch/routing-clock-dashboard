@@ -160,18 +160,26 @@ function parseValues(values: string[][]): RawRoutingOrder[] {
   return rows
 }
 
-/** Busca o título da primeira aba da planilha (necessário para montar o range). */
-async function getFirstSheetTitle(sheetId: string, token: string): Promise<string> {
+/**
+ * Descobre a primeira aba LEGÍVEL da planilha. Abas do tipo DATA_SOURCE
+ * (Connected Sheets ligadas ao BigQuery) não podem ser lidas via values.get,
+ * então são ignoradas — pegamos a primeira aba do tipo GRID.
+ */
+async function getReadableSheetTitle(sheetId: string, token: string): Promise<string> {
   const url =
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}` +
-    `?fields=sheets.properties.title`
+    `?fields=sheets.properties(title,sheetType)`
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
   if (!res.ok) {
     const body = await res.text()
     throw new Error(`Sheets API (metadata) ${res.status}: ${body.slice(0, 200)}`)
   }
-  const json = (await res.json()) as { sheets?: { properties?: { title?: string } }[] }
-  const title = json.sheets?.[0]?.properties?.title
+  const json = (await res.json()) as {
+    sheets?: { properties?: { title?: string; sheetType?: string } }[]
+  }
+  const sheets = json.sheets ?? []
+  const grid = sheets.find((s) => s.properties?.sheetType === "GRID" && s.properties?.title)
+  const title = grid?.properties?.title ?? sheets[0]?.properties?.title
   if (!title) throw new Error("Planilha sem abas legíveis")
   return title
 }
@@ -194,7 +202,7 @@ export async function fetchRowsFromSheet(): Promise<RawRoutingOrder[]> {
   if (rawRange.includes("!")) {
     range = rawRange
   } else {
-    const firstTab = await getFirstSheetTitle(sheetId, token)
+    const firstTab = await getReadableSheetTitle(sheetId, token)
     // Nome da aba escapado com aspas simples (seguro p/ espaços e nomes reservados).
     range = `'${firstTab.replace(/'/g, "''")}'!A:Z`
   }
