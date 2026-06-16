@@ -45,6 +45,7 @@ export function RoutingClockDashboard() {
   })
 
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [refreshingSource, setRefreshingSource] = useState(false)
 
   // Atualiza o horário sempre que novos dados chegam com sucesso.
   useEffect(() => {
@@ -57,9 +58,29 @@ export function RoutingClockDashboard() {
     setFilters((prev) => ({ ...prev, ...next }))
   }
 
+  // "Atualizar Dados": força a Connected Sheet a re-consultar o BigQuery (refresh=1)
+  // e injeta o resultado fresco no cache do SWR.
+  const handleRefresh = async () => {
+    setRefreshingSource(true)
+    try {
+      const res = await fetch(`${query}&refresh=1`)
+      const fresh = (await res.json()) as DashboardData
+      await mutate(fresh, { revalidate: false })
+      setLastUpdated(new Date())
+    } catch {
+      await mutate()
+    } finally {
+      setRefreshingSource(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader onRefresh={() => mutate()} refreshing={isValidating} lastUpdated={lastUpdated} />
+      <DashboardHeader
+        onRefresh={handleRefresh}
+        refreshing={isValidating || refreshingSource}
+        lastUpdated={lastUpdated}
+      />
 
       <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6">
         {data && (

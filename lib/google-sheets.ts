@@ -68,9 +68,11 @@ function getCredentials(): { client_email: string; private_key: string } | null 
 }
 
 async function getAccessToken(credentials: Record<string, unknown>): Promise<string> {
+  // Escopo de leitura+escrita: necessário para disparar o refresh da Connected Sheet
+  // (RefreshDataSourceRequest), além de ler os valores.
   const auth = new GoogleAuth({
     credentials,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   })
   const client = await auth.getClient()
   const token = await client.getAccessToken()
@@ -184,6 +186,76 @@ async function getReadableSheetTitle(sheetId: string, token: string): Promise<st
   const title = grid?.properties?.title ?? sheets[0]?.properties?.title
   if (!title) throw new Error("Planilha sem abas legíveis")
   return title
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** Lê o estado de execução de todas as Connected Sheets (DATA_SOURCE) da planilha. */
+async function getDataExecutionStates(sheetId: string, token: string): Promise<string[]> {
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}` +
+    `?fields=sheets.properties.dataSourceSheetProperties.dataExecutionStatus`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) return []
+  const json = (await res.json()) as {
+    sheets?: { properties?: { dataSourceSheetProperties?: { dataExecutionStatus?: { state?: string } } } }[]
+  }
+  return (json.sheets ?? [])
+    .map((s) => s.properties?.dataSourceSheetProperties?.dataExecutionStatus?.state)
+    .filter((s): s is string => !!s)
+}
+
+/**
+ * Dispara o refresh de TODAS as Connected Sheets (data sources) da planilha,
+ * fazendo a aba "Query" re-consultar o BigQuery. Aguarda a conclusão para que a
+ * fórmula da aba lida (Extração_Query) recalcule antes de ler os valores.
+ *
+ * Requer que a service account tenha acesso de EDITOR na planilha.
+ * Retorna true se houve (ou tentou) refresh; false se não há Connected Sheets.
+ */
+export async function refreshSheetDataSources(): Promise<boolean> {
+  const credentials = getCredentials()
+  const rawId = process.env.GOOGLE_SHEET_ID
+  if (!credentials || !rawId) return false
+
+  const sheetId = extractSheetId(rawId)
+  const token = await getAccessToken(credentials)
+
+  // Sem Connected Sheets não há o que atualizar.
+  const before = await getDataExecutionStates(sheetId, token)
+  if (before.length === 0) {
+    console.log("[v0] Planilha sem Connected Sheets (data sources) para atualizar.")
+    return false
+  }
+
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}:batchUpdate`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ requests: [{ refreshDataSource: { isAll: true, force: true } }] }),
+    },
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Refresh data source ${res.status}: ${body.slice(0, 250)}`)
+  }
+
+  // Aguarda a execução concluir (estado deixa de ser RUNNING). Timeout ~45s.
+  const deadline = Date.now() + 45_000
+  while (Date.now() < deadline) {
+    await sleep(2500)
+    const states = await getDataExecutionStates(sheetId, token)
+    const running = states.some((s) => s === "RUNNING")
+    if (!running) {
+      console.log("[v0] Refresh das Connected Sheets concluído. Estados:", states.join(", "))
+      // Pequena folga para a fórmula da aba lida recalcular.
+      await sleep(2000)
+      return true
+    }
+  }
+  console.log("[v0] Refresh ainda em execução após timeout; lendo os dados disponíveis.")
+  return true
 }
 
 /** Busca as linhas do Routing Clock a partir do Google Sheet configurado. */
