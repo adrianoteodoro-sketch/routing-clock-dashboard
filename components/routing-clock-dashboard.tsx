@@ -8,7 +8,7 @@ import { KpiCards } from "@/components/kpi-cards"
 import { MonthlyChart, WeeklyChart } from "@/components/performance-charts"
 import { WaterfallChart } from "@/components/waterfall-chart"
 import { OffendersList, SeverityRange } from "@/components/offenders-severity"
-import { Database, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import type { DashboardData, Filters } from "@/lib/types"
 
 const DEFAULT_FILTERS: Filters = {
@@ -64,17 +64,6 @@ export function RoutingClockDashboard() {
       <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6">
         {data && (
           <FiltersBar filters={filters} opcoes={data.opcoes} onChange={handleFilterChange} />
-        )}
-
-        {data?.fonte === "mock" && (
-          <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-2.5 text-sm text-foreground">
-            <Database className="h-4 w-4 text-warning" />
-            <span>
-              <strong>Dados de exemplo</strong> — o preview roda fora do perímetro VPC do BigQuery. Em produção
-              (dentro do perímetro), a query real do <code className="font-mono text-xs">meli-bi-data</code> é usada
-              automaticamente.
-            </span>
-          </div>
         )}
 
         {isLoading || !data ? (
