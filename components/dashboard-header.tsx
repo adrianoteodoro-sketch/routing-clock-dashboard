@@ -1,6 +1,6 @@
 "use client"
 
-import { LayoutGrid, RefreshCw, ArrowLeft, Package } from "lucide-react"
+import { LayoutGrid, RefreshCw, Package } from "lucide-react"
 
 interface DashboardHeaderProps {
   onRefresh: () => void
@@ -17,10 +17,6 @@ export function DashboardHeader({ onRefresh, refreshing }: DashboardHeaderProps)
             <Package className="h-7 w-7 text-foreground" strokeWidth={2.2} />
             <span className="text-xl font-bold tracking-tight text-foreground">Mercado Livre</span>
           </div>
-          <button className="flex items-center gap-2 text-sm font-semibold text-foreground transition-opacity hover:opacity-70">
-            <ArrowLeft className="h-4 w-4" />
-            Voltar ao Portal
-          </button>
         </div>
       </div>
 

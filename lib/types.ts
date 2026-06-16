@@ -8,6 +8,7 @@ export interface RawRoutingOrder {
   updated_time: string // HH:MM:SS
   time_to_update: string // HH:MM - duração da roteirização
   SHP_FACILITY_ID: string
+  Regional: string // Regional derivada do HUB via CASE na própria query
   RTG_ORD_PLAN_LOCAL_DATE: string // YYYY-MM-DD - data de coleta planejada
   RTG_ORD_STATUS: string
   date_created: string
