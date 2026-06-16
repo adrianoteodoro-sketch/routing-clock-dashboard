@@ -139,6 +139,12 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
   const result: RoutingOrder[] = []
 
   for (const r of rows) {
+    // Regional do roteiro: usa a coluna da planilha/query ou deriva do HUB.
+    const regional = r.Regional || regionalForHub(r.SHP_FACILITY_ID)
+
+    // Facilities sem regional mapeada (ex.: BRXSP6) ficam fora do dashboard.
+    if (regional === "N/D") continue
+
     const durationMinutes = hhmmToMinutes(r.time_to_update)
     const tmrMinutes = hhmmToMinutes(r.TMR_Routing)
     const tmrTargetMinutes = hhmmToMinutes(r.TMR_Routing_30pct)
@@ -187,7 +193,7 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
       tmrState,
       withinDeadline,
       isAdherent,
-      regional: r.Regional || regionalForHub(r.SHP_FACILITY_ID),
+      regional,
       month: `${created.getFullYear()}/${created.getMonth() + 1}`,
       week: `W${isoWeek(created)}`,
       reason,
