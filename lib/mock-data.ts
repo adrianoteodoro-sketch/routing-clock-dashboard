@@ -1,6 +1,6 @@
 import type { RawRoutingOrder, PlanificationType } from "./types"
 import { getDeadline } from "./routing-clock"
-import { ALL_HUBS } from "./hubs"
+import { ALL_HUBS, regionalForHub } from "./hubs"
 
 // Geração determinística de dados de exemplo no MESMO formato da query do BigQuery.
 // Usado apenas no preview (fora do perímetro VPC). Em produção a query real substitui.
@@ -98,6 +98,7 @@ export function generateMockRows(count = 6000): RawRoutingOrder[] {
       updated_time: minutesToHHMMSS(minuteOfDay(publishedAt)),
       time_to_update: minutesToHHMM(duration),
       SHP_FACILITY_ID: f.id,
+      Regional: regionalForHub(f.id),
       RTG_ORD_PLAN_LOCAL_DATE: fmtDate(collection),
       RTG_ORD_STATUS: "published",
       date_created: fmtDate(created),

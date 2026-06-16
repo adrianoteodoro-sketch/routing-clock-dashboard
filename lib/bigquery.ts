@@ -14,11 +14,38 @@ SELECT
         LPAD(CAST(MOD(ro.total_minutes, 60) AS STRING), 2, '0')
     ) AS time_to_update,
     ro.SHP_FACILITY_ID,
+    CASE ro.SHP_FACILITY_ID
+        WHEN 'XSP4'     THEN 'MEGAS'
+        WHEN 'BRXSP16'  THEN 'MEGAS'
+        WHEN 'ARENA'    THEN 'MEGAS'
+        WHEN 'BRXSP10'  THEN 'MEGAS'
+        WHEN 'BRXSP18'  THEN 'MEGAS'
+        WHEN 'BRXBA1'   THEN 'NONECO'
+        WHEN 'BRXPE1'   THEN 'NONECO'
+        WHEN 'BRXCE1'   THEN 'NONECO'
+        WHEN 'BRXGO1'   THEN 'NONECO'
+        WHEN 'BRXES1'   THEN 'RIMES'
+        WHEN 'BRXMG2'   THEN 'RIMES'
+        WHEN 'XMG1'     THEN 'RIMES'
+        WHEN 'BRRJ02'   THEN 'RIMES'
+        WHEN 'BRXSP7'   THEN 'SPIO'
+        WHEN 'BRXPR2'   THEN 'SPIO'
+        WHEN 'BRXSP14'  THEN 'SPIO'
+        WHEN 'BRXMG3'   THEN 'SPIO'
+        WHEN 'BRXSP11'  THEN 'SPIO'
+        WHEN 'BRXPR4'   THEN 'SPIO'
+        WHEN 'CAMPINAS' THEN 'SPIO'
+        WHEN 'BRXSP5'   THEN 'SPIO'
+        WHEN 'BRPR01'   THEN 'SUL'
+        WHEN 'BRXSC2'   THEN 'SUL'
+        WHEN 'BRXPR3'   THEN 'SUL'
+        WHEN 'BRXRS1'   THEN 'SUL'
+        ELSE 'OUTROS'
+    END AS Regional,
     ro.RTG_ORD_PLAN_LOCAL_DATE,
     ro.RTG_ORD_STATUS,
     DATE(ro.RTG_ORD_DATE_CREATED_DTTM) AS date_created,
     JSON_VALUE(ro.RTG_ORD_TAGS, '$.planification_type') AS planification_type,
-    -- A Regional é derivada do HUB (SHP_FACILITY_ID) no código (lib/hubs.ts).
     -- TMR por facility sem acréscimo
     CONCAT(
         LPAD(CAST(DIV(CAST(AVG(ro.total_minutes) OVER (PARTITION BY ro.SHP_FACILITY_ID) AS INT64), 60) AS STRING), 2, '0'), ':',

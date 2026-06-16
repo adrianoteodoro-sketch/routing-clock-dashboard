@@ -182,7 +182,7 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
       tmrState,
       withinDeadline,
       isAdherent,
-      regional: regionalForHub(r.SHP_FACILITY_ID),
+      regional: r.Regional || regionalForHub(r.SHP_FACILITY_ID),
       month: `${created.getFullYear()}/${created.getMonth() + 1}`,
       week: `W${isoWeek(created)}`,
       reason,
