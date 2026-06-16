@@ -104,7 +104,7 @@ export function generateMockRows(count = 6000): RawRoutingOrder[] {
       date_created: fmtDate(created),
       planification_type: planificationType,
       TMR_Routing: minutesToHHMM(f.tmr),
-      TMR_Routing_30pct: minutesToHHMM(tmrTarget),
+      TMR_Routing_Exec: minutesToHHMM(tmrTarget),
     })
   }
 

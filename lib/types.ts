@@ -13,8 +13,8 @@ export interface RawRoutingOrder {
   RTG_ORD_STATUS: string
   date_created: string
   planification_type: PlanificationType
-  TMR_Routing: string // HH:MM - TMR médio da facility
-  TMR_Routing_30pct: string // HH:MM - TMR alvo (TMR x 1.30)
+  TMR_Routing: string // HH:MM - TMR médio da facility (alvo)
+  TMR_Routing_Exec: string // HH:MM - TMR executado (medida de aderência ao routing clock)
 }
 
 export type TmrState = "ok" | "risco" | "estouro"

@@ -136,7 +136,7 @@ function parseValues(values: string[][]): RawRoutingOrder[] {
   const iStatus = idx("RTG_ORD_STATUS")
   const iPlanType = idx("planification_type")
   const iTmr = idx("TMR_Routing")
-  const iTmr30 = idx("TMR_Routing_30pct")
+  const iTmrExec = idx("TMR_Routing_Exec")
 
   const rows: RawRoutingOrder[] = []
   for (let r = 1; r < values.length; r++) {
@@ -161,7 +161,7 @@ function parseValues(values: string[][]): RawRoutingOrder[] {
       date_created: normalizeDate(row[iCreatedDate] ?? ""),
       planification_type: planType,
       TMR_Routing: normalizeHHMM(row[iTmr] ?? ""),
-      TMR_Routing_30pct: normalizeHHMM(row[iTmr30] ?? ""),
+      TMR_Routing_Exec: normalizeHHMM(row[iTmrExec] ?? ""),
     })
   }
   return rows

@@ -155,7 +155,8 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
 
     const durationMinutes = hhmmToMinutes(r.time_to_update)
     const tmrMinutes = hhmmToMinutes(r.TMR_Routing)
-    const tmrTargetMinutes = hhmmToMinutes(r.TMR_Routing_30pct)
+    // TMR executado (coluna TMR_Routing_Exec) = medida de aderência ao routing clock.
+    const tmrTargetMinutes = hhmmToMinutes(r.TMR_Routing_Exec)
 
     // Classificação de TMR
     let tmrState: RoutingOrder["tmrState"]

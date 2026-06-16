@@ -53,11 +53,11 @@ SELECT
         LPAD(CAST(DIV(CAST(AVG(ro.total_minutes) OVER (PARTITION BY ro.SHP_FACILITY_ID) AS INT64), 60) AS STRING), 2, '0'), ':',
         LPAD(CAST(MOD(CAST(AVG(ro.total_minutes) OVER (PARTITION BY ro.SHP_FACILITY_ID) AS INT64), 60) AS STRING), 2, '0')
     ) AS TMR_Routing,
-    -- TMR por facility com +30% (TMR Alvo)
+    -- TMR executado por facility (aproximação: média +30%). Fonte real é a planilha (TMR_Routing_Exec).
     CONCAT(
         LPAD(CAST(DIV(CAST(AVG(ro.total_minutes) OVER (PARTITION BY ro.SHP_FACILITY_ID) * 1.3 AS INT64), 60) AS STRING), 2, '0'), ':',
         LPAD(CAST(MOD(CAST(AVG(ro.total_minutes) OVER (PARTITION BY ro.SHP_FACILITY_ID) * 1.3 AS INT64), 60) AS STRING), 2, '0')
-    ) AS TMR_Routing_30pct
+    ) AS TMR_Routing_Exec
 FROM (
     SELECT
         ro.*, f.SHP_TIMEZONE_ID,
@@ -105,7 +105,7 @@ function normalizeBigQueryRow(row: Record<string, unknown>): RawRoutingOrder {
     RTG_ORD_STATUS: bqValue(row.RTG_ORD_STATUS),
     planification_type: bqValue(row.planification_type) as RawRoutingOrder["planification_type"],
     TMR_Routing: bqValue(row.TMR_Routing),
-    TMR_Routing_30pct: bqValue(row.TMR_Routing_30pct),
+    TMR_Routing_Exec: bqValue(row.TMR_Routing_Exec),
   }
 }
 
