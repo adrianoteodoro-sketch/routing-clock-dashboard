@@ -8,8 +8,11 @@ import { KpiCards } from "@/components/kpi-cards"
 import { MonthlyChart, WeeklyChart } from "@/components/performance-charts"
 import { WaterfallChart } from "@/components/waterfall-chart"
 import { OffendersList, SeverityRange } from "@/components/offenders-severity"
-import { Loader2 } from "lucide-react"
+import { HubAnalysis } from "@/components/hub-analysis"
+import { Loader2, LayoutDashboard, Building2 } from "lucide-react"
 import type { DashboardData, Filters } from "@/lib/types"
+
+type TabId = "geral" | "hubs"
 
 const DEFAULT_FILTERS: Filters = {
   regional: "TODAS",
@@ -25,6 +28,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export function RoutingClockDashboard() {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
+  const [tab, setTab] = useState<TabId>("geral")
 
   const query = useMemo(() => {
     const sp = new URLSearchParams({
@@ -83,6 +87,22 @@ export function RoutingClockDashboard() {
       />
 
       <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6">
+        {/* Seletor de abas */}
+        <div className="flex flex-wrap gap-2">
+          <TabButton
+            active={tab === "geral"}
+            onClick={() => setTab("geral")}
+            icon={<LayoutDashboard className="h-4 w-4" />}
+            label="Visão Geral"
+          />
+          <TabButton
+            active={tab === "hubs"}
+            onClick={() => setTab("hubs")}
+            icon={<Building2 className="h-4 w-4" />}
+            label="Análise de HUBs"
+          />
+        </div>
+
         {data && (
           <FiltersBar filters={filters} opcoes={data.opcoes} onChange={handleFilterChange} />
         )}
@@ -94,7 +114,7 @@ export function RoutingClockDashboard() {
               <p className="text-sm font-medium">Carregando dados de roteirização...</p>
             </div>
           </div>
-        ) : (
+        ) : tab === "geral" ? (
           <>
             <KpiCards kpis={data.kpis} />
 
@@ -112,8 +132,36 @@ export function RoutingClockDashboard() {
               <SeverityRange ranges={data.rangeSeveridade} />
             </div>
           </>
+        ) : (
+          <HubAnalysis data={data.hubAnalise} />
         )}
       </main>
     </div>
+  )
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  label: string
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold uppercase tracking-tight transition-colors ${
+        active
+          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+          : "border-border bg-card text-muted-foreground hover:bg-secondary/50"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
   )
 }

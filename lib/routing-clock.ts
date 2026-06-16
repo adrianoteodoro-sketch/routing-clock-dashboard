@@ -1,9 +1,13 @@
 import type {
   DashboardData,
   Filters,
+  HubAnalise,
+  HubAnaliseSecao,
+  HubResumo,
   Ofensor,
   RangeSeveridade,
   RawRoutingOrder,
+  RegionalResumo,
   RoutingOrder,
   SeriePonto,
   WaterfallPonto,
@@ -168,6 +172,10 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
     if (!deadline) continue
 
     const withinDeadline = publishedAt.getTime() <= deadline.getTime()
+    const minutesLate = withinDeadline
+      ? 0
+      : Math.round((publishedAt.getTime() - deadline.getTime()) / 60000)
+    const tmrExcessMinutes = tmrState === "estouro" ? Math.max(0, durationMinutes - tmrTargetMinutes) : 0
 
     // Aderente ao Routing Clock = publicado dentro do prazo
     const isAdherent = withinDeadline
@@ -190,9 +198,12 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
       collectionDate: r.RTG_ORD_PLAN_LOCAL_DATE,
       routingDate: r.created_date,
       publishedAt: publishedAt.toISOString(),
+      deadline: deadline.toISOString(),
+      minutesLate,
       durationMinutes,
       tmrMinutes,
       tmrTargetMinutes,
+      tmrExcessMinutes,
       tmrState,
       withinDeadline,
       isAdherent,
@@ -335,6 +346,95 @@ function buildRangeSeveridade(orders: RoutingOrder[]): RangeSeveridade[] {
     .filter((f) => f.ocorrencias > 0)
 }
 
+// ----------------------------------------------------------------------------
+// Análise por HUB (atraso e estouro de TMR)
+// ----------------------------------------------------------------------------
+
+type HubMetric = "atraso" | "estouro"
+
+function buildHubSecao(orders: RoutingOrder[], metric: HubMetric): HubAnaliseSecao {
+  // Predicado e magnitude (minutos) de cada métrica.
+  const matches = (o: RoutingOrder) => (metric === "atraso" ? !o.withinDeadline : o.tmrState === "estouro")
+  const magnitude = (o: RoutingOrder) => (metric === "atraso" ? o.minutesLate : o.tmrExcessMinutes)
+
+  // Agrupamento por HUB
+  const hubMap = new Map<string, { regional: string; total: number; hits: RoutingOrder[] }>()
+  for (const o of orders) {
+    if (!hubMap.has(o.facilityId)) hubMap.set(o.facilityId, { regional: o.regional, total: 0, hits: [] })
+    const g = hubMap.get(o.facilityId)!
+    g.total += 1
+    if (matches(o)) g.hits.push(o)
+  }
+
+  const hubs: HubResumo[] = [...hubMap.entries()]
+    .filter(([, g]) => g.hits.length > 0)
+    .map(([facilityId, g]) => {
+      const mins = g.hits.map(magnitude)
+      const piorMinutos = mins.reduce((a, b) => Math.max(a, b), 0)
+      const mediaMinutos = Math.round(mins.reduce((a, b) => a + b, 0) / mins.length)
+      const detalhes = [...g.hits]
+        .sort((a, b) => magnitude(b) - magnitude(a))
+        .map((o) => ({
+          collectionDate: o.collectionDate,
+          routingDate: o.routingDate,
+          planificationType: o.planificationType,
+          publishedAt: o.publishedAt,
+          deadline: o.deadline,
+          minutesLate: o.minutesLate,
+          durationMinutes: o.durationMinutes,
+          tmrTargetMinutes: o.tmrTargetMinutes,
+          tmrExcessMinutes: o.tmrExcessMinutes,
+        }))
+      return {
+        facilityId,
+        regional: g.regional,
+        total: g.total,
+        ocorrencias: g.hits.length,
+        pct: Number(((g.hits.length / g.total) * 100).toFixed(2)),
+        piorMinutos,
+        mediaMinutos,
+        detalhes,
+      }
+    })
+    .sort((a, b) => b.ocorrencias - a.ocorrencias || b.pct - a.pct)
+
+  // Agrupamento por regional
+  const regMap = new Map<string, { total: number; ocorrencias: number }>()
+  for (const o of orders) {
+    if (!regMap.has(o.regional)) regMap.set(o.regional, { total: 0, ocorrencias: 0 })
+    const g = regMap.get(o.regional)!
+    g.total += 1
+    if (matches(o)) g.ocorrencias += 1
+  }
+  const regionais: RegionalResumo[] = [...regMap.entries()]
+    .map(([regional, g]) => ({
+      regional,
+      total: g.total,
+      ocorrencias: g.ocorrencias,
+      pct: Number(((g.ocorrencias / (g.total || 1)) * 100).toFixed(2)),
+    }))
+    .filter((r) => r.ocorrencias > 0)
+    .sort((a, b) => b.ocorrencias - a.ocorrencias)
+
+  const totalOcorrencias = hubs.reduce((acc, h) => acc + h.ocorrencias, 0)
+  const totalRoteiros = orders.length
+
+  return {
+    totalRoteiros,
+    totalOcorrencias,
+    pctOcorrencias: Number(((totalOcorrencias / (totalRoteiros || 1)) * 100).toFixed(2)),
+    hubs,
+    regionais,
+  }
+}
+
+function buildHubAnalise(orders: RoutingOrder[]): HubAnalise {
+  return {
+    atraso: buildHubSecao(orders, "atraso"),
+    estouro: buildHubSecao(orders, "estouro"),
+  }
+}
+
 export function buildDashboard(
   orders: RoutingOrder[],
   filters: Filters,
@@ -394,6 +494,7 @@ export function buildDashboard(
     waterfall: buildWaterfall(filtered),
     ofensores: buildOfensores(filtered),
     rangeSeveridade: buildRangeSeveridade(filtered),
+    hubAnalise: buildHubAnalise(filtered),
     opcoes: {
       regionais: uniq(orders.map((o) => o.regional)),
       meses: chronoLabels("month"),
