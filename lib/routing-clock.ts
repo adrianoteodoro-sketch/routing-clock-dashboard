@@ -91,6 +91,7 @@ function addDays(date: Date, days: number): Date {
  *  - Coleta sábado (excepcional) -> quarta da mesma semana 13:00
  * D-1 (replanning): entrega no dia útil anterior à coleta às 17:00
  *  - ter->seg, qua->ter, qui->qua, sex->qui, seg->sex anterior
+ *  - sábado -> quarta anterior às 14:00 (regra específica do sábado)
  */
 export function getDeadline(collectionDate: Date, type: "tactical" | "replanning"): Date | null {
   const dow = collectionDate.getDay() // 0=dom 1=seg ... 6=sab
@@ -126,6 +127,8 @@ export function getDeadline(collectionDate: Date, type: "tactical" | "replanning
       return atHour(addDays(collectionDate, -1), 17)
     case 1: // segunda -> sexta anterior
       return atHour(addDays(collectionDate, -3), 17)
+    case 6: // sábado -> quarta anterior 14:00
+      return atHour(addDays(collectionDate, -3), 14)
     default:
       return null
   }
