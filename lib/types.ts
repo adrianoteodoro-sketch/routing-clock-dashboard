@@ -106,5 +106,5 @@ export interface DashboardData {
   ofensores: Ofensor[]
   rangeSeveridade: RangeSeveridade[]
   opcoes: DashboardOpcoes
-  fonte: "bigquery" | "mock"
+  fonte: "bigquery" | "sheets" | "mock"
 }

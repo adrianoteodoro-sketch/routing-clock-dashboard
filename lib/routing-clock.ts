@@ -322,7 +322,11 @@ function buildRangeSeveridade(orders: RoutingOrder[]): RangeSeveridade[] {
     .filter((f) => f.ocorrencias > 0)
 }
 
-export function buildDashboard(orders: RoutingOrder[], filters: Filters, fonte: "bigquery" | "mock"): DashboardData {
+export function buildDashboard(
+  orders: RoutingOrder[],
+  filters: Filters,
+  fonte: "bigquery" | "sheets" | "mock",
+): DashboardData {
   const filtered = applyFilters(orders, filters)
 
   const mensal = buildSerie(filtered, "month")

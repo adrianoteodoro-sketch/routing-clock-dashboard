@@ -1,5 +1,6 @@
 import type { RawRoutingOrder } from "./types"
 import { generateMockRows } from "./mock-data"
+import { fetchRowsFromSheet, isSheetsConfigured } from "./google-sheets"
 
 // Query do Routing Clock First Mile (BT_SHP_LG_RTG_ORDER + LK_SHP_FACILITIES).
 // Mantida aqui para rodar quando o deploy estiver DENTRO do perímetro VPC do meli-bi-data.
@@ -77,17 +78,32 @@ LEFT JOIN \`meli-bi-data.WHOWNER.LK_SHP_FACILITIES\` AS f ON ro.SHP_FACILITY_ID 
 `
 
 /**
- * Busca as linhas do Routing Clock First Mile.
- * - Em produção (dentro do perímetro VPC, com credenciais), executa a query real.
- * - Caso contrário (preview do v0 / sem credenciais), retorna dados mock.
+ * Busca as linhas do Routing Clock First Mile. Ordem de prioridade:
+ *   1. Google Sheet (pipeline automatizado, recomendado) — funciona fora do VPC.
+ *   2. Conexão direta ao BigQuery — só dentro do perímetro VPC do meli-bi-data.
+ *   3. Dados mock — preview do v0 / sem nenhuma configuração.
  */
-export async function fetchRoutingOrders(): Promise<{ rows: RawRoutingOrder[]; fonte: "bigquery" | "mock" }> {
-  const hasCredentials =
-    !!process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-    !!process.env.GCP_SERVICE_ACCOUNT_KEY ||
-    !!process.env.BIGQUERY_PROJECT_ID
+export async function fetchRoutingOrders(): Promise<{
+  rows: RawRoutingOrder[]
+  fonte: "bigquery" | "sheets" | "mock"
+}> {
+  // 1) Google Sheet (caminho automatizado preferido)
+  if (isSheetsConfigured()) {
+    try {
+      const rows = await fetchRowsFromSheet()
+      if (rows.length > 0) return { rows, fonte: "sheets" }
+      console.log("[v0] Google Sheet vazio ou sem linhas válidas, tentando próxima fonte.")
+    } catch (error) {
+      console.log("[v0] Falha ao ler Google Sheet:", (error as Error).message)
+    }
+  }
 
-  if (!hasCredentials) {
+  // 2) Conexão direta ao BigQuery (dentro do perímetro VPC)
+  const hasBigQueryCredentials =
+    !!process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+    (!!process.env.GCP_SERVICE_ACCOUNT_KEY && !!process.env.BIGQUERY_PROJECT_ID)
+
+  if (!hasBigQueryCredentials) {
     return { rows: generateMockRows(), fonte: "mock" }
   }
 
