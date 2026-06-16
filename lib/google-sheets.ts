@@ -68,11 +68,14 @@ function getCredentials(): { client_email: string; private_key: string } | null 
 }
 
 async function getAccessToken(credentials: Record<string, unknown>): Promise<string> {
-  // Escopo de leitura+escrita: necessário para disparar o refresh da Connected Sheet
-  // (RefreshDataSourceRequest), além de ler os valores.
+  // Escopos: spreadsheets (ler valores + disparar RefreshDataSourceRequest) e
+  // bigquery.readonly (a Connected Sheet re-consulta o BigQuery durante o refresh).
   const auth = new GoogleAuth({
     credentials,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    scopes: [
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/bigquery.readonly",
+    ],
   })
   const client = await auth.getClient()
   const token = await client.getAccessToken()
