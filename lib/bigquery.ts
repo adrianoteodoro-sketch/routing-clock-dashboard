@@ -78,6 +78,36 @@ LEFT JOIN \`meli-bi-data.WHOWNER.LK_SHP_FACILITIES\` AS f ON ro.SHP_FACILITY_ID 
 `
 
 /**
+ * O cliente do BigQuery devolve DATE/TIME/DATETIME como objetos { value: "..." }.
+ * Convertendo tudo para string simples, como a lógica de cálculo espera.
+ */
+function bqValue(v: unknown): string {
+  if (v == null) return ""
+  if (typeof v === "string") return v
+  if (typeof v === "object" && "value" in (v as Record<string, unknown>)) {
+    return String((v as { value: unknown }).value ?? "")
+  }
+  return String(v)
+}
+
+function normalizeBigQueryRow(row: Record<string, unknown>): RawRoutingOrder {
+  return {
+    created_date: bqValue(row.created_date),
+    created_time: bqValue(row.created_time),
+    updated_date: bqValue(row.updated_date),
+    updated_time: bqValue(row.updated_time),
+    time_to_update: bqValue(row.time_to_update),
+    SHP_FACILITY_ID: bqValue(row.SHP_FACILITY_ID),
+    Regional: bqValue(row.Regional),
+    RTG_ORD_PLAN_LOCAL_DATE: bqValue(row.RTG_ORD_PLAN_LOCAL_DATE),
+    RTG_ORD_STATUS: bqValue(row.RTG_ORD_STATUS),
+    planification_type: bqValue(row.planification_type) as RawRoutingOrder["planification_type"],
+    TMR_Routing: bqValue(row.TMR_Routing),
+    TMR_Routing_30pct: bqValue(row.TMR_Routing_30pct),
+  }
+}
+
+/**
  * Busca as linhas do Routing Clock First Mile. Ordem de prioridade:
  *   1. Google Sheet (pipeline automatizado, recomendado) — funciona fora do VPC.
  *   2. Conexão direta ao BigQuery — só dentro do perímetro VPC do meli-bi-data.
@@ -121,9 +151,11 @@ export async function fetchRoutingOrders(): Promise<{
     })
 
     const [job] = await bq.createQueryJob({ query: ROUTING_CLOCK_QUERY, location: "US" })
-    const [rows] = await job.getQueryResults()
+    const [rawRows] = await job.getQueryResults()
 
-    return { rows: rows as RawRoutingOrder[], fonte: "bigquery" }
+    const rows = (rawRows as Record<string, unknown>[]).map(normalizeBigQueryRow)
+
+    return { rows, fonte: "bigquery" }
   } catch (error) {
     console.log("[v0] Falha ao consultar BigQuery, usando mock:", (error as Error).message)
     return { rows: generateMockRows(), fonte: "mock" }
