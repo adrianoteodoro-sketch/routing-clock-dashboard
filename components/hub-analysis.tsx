@@ -181,10 +181,20 @@ function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric })
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between gap-2 border-b border-border bg-secondary/20 px-4 py-2.5">
+        <p className="text-xs font-medium text-muted-foreground">
+          {secao.hubs.length} {secao.hubs.length === 1 ? "HUB impactado" : "HUBs impactados"}
+        </p>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+          <ChevronDown className="h-3.5 w-3.5" />
+          Clique em um HUB para ver os roteiros
+        </span>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-border bg-secondary/40 text-left">
+              <th className="w-10 px-4 py-3" aria-label="Expandir" />
               <th className="px-4 py-3 font-bold uppercase tracking-wide text-muted-foreground">HUB</th>
               <th className="px-4 py-3 font-bold uppercase tracking-wide text-muted-foreground">Regional</th>
               <th className="px-4 py-3 text-right font-bold uppercase tracking-wide text-muted-foreground">
@@ -206,17 +216,21 @@ function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric })
                 <Fragment key={h.facilityId}>
                   <tr
                     onClick={() => setOpen(isOpen ? null : h.facilityId)}
-                    className="cursor-pointer border-b border-border transition-colors hover:bg-secondary/30"
+                    className={`cursor-pointer border-b border-border transition-colors hover:bg-secondary/40 ${
+                      isOpen ? "bg-secondary/40" : ""
+                    }`}
                   >
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 font-bold text-foreground">
-                        {isOpen ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        {h.facilityId}
-                      </div>
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
+                          isOpen ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-bold text-foreground">{h.facilityId}</span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{h.regional}</td>
                     <td className="px-4 py-3 text-right font-bold text-danger">{h.ocorrencias}</td>
@@ -226,7 +240,7 @@ function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric })
                   </tr>
                   {isOpen && (
                     <tr className="border-b border-border bg-secondary/20">
-                      <td colSpan={6} className="px-4 py-4">
+                      <td colSpan={7} className="px-4 py-4">
                         <div className="overflow-x-auto">
                           <table className="w-full min-w-[560px] border-collapse text-xs">
                             <thead>
