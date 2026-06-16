@@ -378,8 +378,8 @@ function buildAberturaDiaria(all: RoutingOrder[]): HubDiaResumo[] {
         atrasoMedioMin: avg(atrasados.map((o) => o.minutesLate)),
         atrasoPiorMin: max(list.map((o) => o.minutesLate)),
         tmrMedioMin: avg(list.map((o) => o.durationMinutes)),
-        // TMR alvo base (TMR_Routing). Média só dos roteiros com alvo definido (>0).
-        tmrAlvoMin: avgPos(list.map((o) => o.tmrMinutes)),
+        // TMR de aderência ao routing clock (coluna TMR_Routing_Exec). Média só dos roteiros com valor definido (>0).
+        tmrAlvoMin: avgPos(list.map((o) => o.tmrTargetMinutes)),
         estouros: estourados.length,
         excessoPiorMin: max(list.map((o) => o.tmrExcessMinutes)),
       }
