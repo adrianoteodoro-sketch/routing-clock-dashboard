@@ -14,6 +14,7 @@ import type {
   WaterfallPonto,
 } from "./types"
 import { regionalForHub } from "./hubs"
+import { DEADLINE_EXCEPTIONS } from "./routing-clock-exceptions"
 
 export const META_PERFORMANCE = 95 // % das operações entregues dentro do horário
 
@@ -86,6 +87,44 @@ function addDays(date: Date, days: number): Date {
   return d
 }
 
+/** Adiciona N dias úteis (pula sábado e domingo). */
+function addBusinessDays(date: Date, days: number): Date {
+  const d = new Date(date)
+  let remaining = days
+  while (remaining > 0) {
+    d.setDate(d.getDate() + 1)
+    const dow = d.getDay()
+    if (dow !== 0 && dow !== 6) remaining--
+  }
+  return d
+}
+
+/**
+ * Retorna o prazo alternativo se a coleta casar com alguma exceção configurada
+ * em DEADLINE_EXCEPTIONS. Caso contrário, retorna null (usa-se a regra padrão).
+ */
+function getExceptionDeadline(
+  facilityId: string,
+  collectionDate: Date,
+  type: "tactical" | "replanning",
+): Date | null {
+  const ymd = `${collectionDate.getFullYear()}-${String(collectionDate.getMonth() + 1).padStart(2, "0")}-${String(
+    collectionDate.getDate(),
+  ).padStart(2, "0")}`
+
+  for (const exc of DEADLINE_EXCEPTIONS) {
+    if (exc.hubs !== "*" && !exc.hubs.includes(facilityId)) continue
+    if (exc.tipos && !exc.tipos.includes(type)) continue
+    if (exc.deData && ymd < exc.deData) continue
+    if (exc.ateData && ymd > exc.ateData) continue
+    // Coleta no fim de semana não tem prazo nesta regra (consistente com o padrão).
+    const dow = collectionDate.getDay()
+    if (dow === 0 || dow === 6) return null
+    return atHour(addBusinessDays(collectionDate, exc.regraDiasUteis), exc.hora, exc.minuto ?? 0)
+  }
+  return null
+}
+
 /**
  * Calcula o prazo (data/hora limite) de publicação do roteiro a partir
  * da data de coleta e do tipo de planificação.
@@ -98,7 +137,17 @@ function addDays(date: Date, days: number): Date {
  *  - ter->seg, qua->ter, qui->qua, sex->qui, seg->sex anterior
  *  - sábado -> quarta anterior às 14:00 (regra específica do sábado)
  */
-export function getDeadline(collectionDate: Date, type: "tactical" | "replanning"): Date | null {
+export function getDeadline(
+  collectionDate: Date,
+  type: "tactical" | "replanning",
+  facilityId?: string,
+): Date | null {
+  // Exceções configuradas (lista fixa) têm prioridade sobre a regra padrão.
+  if (facilityId) {
+    const exception = getExceptionDeadline(facilityId, collectionDate, type)
+    if (exception) return exception
+  }
+
   const dow = collectionDate.getDay() // 0=dom 1=seg ... 6=sab
   const monday = mondayOf(collectionDate)
 
@@ -167,7 +216,7 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
     // Aderência de prazo (dia/hora limite)
     const collectionDate = new Date(`${r.RTG_ORD_PLAN_LOCAL_DATE}T00:00:00`)
     const publishedAt = parseDateTime(r.updated_date, r.updated_time)
-    const deadline = getDeadline(collectionDate, r.planification_type)
+    const deadline = getDeadline(collectionDate, r.planification_type, r.SHP_FACILITY_ID)
 
     // Ordens sem regra de prazo (ex.: coleta no domingo) ficam fora do Routing Clock:
     // não contam no volume nem na performance, evitando inflar o indicador.
