@@ -179,17 +179,15 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
       : Math.round((publishedAt.getTime() - deadline.getTime()) / 60000)
     const tmrExcessMinutes = tmrState === "estouro" ? Math.max(0, durationMinutes - tmrTargetMinutes) : 0
 
-    // Aderente ao Routing Clock = publicado dentro do prazo E TMR executado dentro do limite (TMR_Routing_Exec)
-    const tmrEstourou = tmrState === "estouro"
-    const isAdherent = withinDeadline && !tmrEstourou
+    // Aderente ao Routing Clock = publicado dentro do prazo de entrega.
+    // O TMR (TMR_Routing_Exec) é apenas sinal de risco/ofensor, não afeta a aderência.
+    const isAdherent = withinDeadline
 
-    // Motivo da não aderência (prazo tem prioridade quando ambos falham)
+    // Motivo da não aderência (prazo é o que define a aderência; TMR é informativo)
     let reason = "Aderente"
-    if (!withinDeadline && tmrEstourou) {
-      reason = "Fora do prazo e estouro de TMR"
-    } else if (!withinDeadline) {
-      reason = "Fora do prazo de entrega"
-    } else if (tmrEstourou) {
+    if (!withinDeadline) {
+      reason = tmrState === "estouro" ? "Fora do prazo (com estouro de TMR)" : "Fora do prazo de entrega"
+    } else if (tmrState === "estouro") {
       reason = "Estouro de TMR"
     } else if (tmrState === "risco") {
       reason = "Risco de estouro de TMR"
