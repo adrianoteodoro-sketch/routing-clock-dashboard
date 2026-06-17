@@ -195,6 +195,17 @@ export function getDeadline(
 export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
   const result: RoutingOrder[] = []
 
+  // Índice de coletas de SEGUNDA-FEIRA no fluxo D-1 (replanning), por HUB.
+  // Usado na regra "terça → segunda 17:00 SE HOUVER roteirização D-1 para coleta na segunda".
+  const mondayReplanningCollections = new Set<string>()
+  for (const r of rows) {
+    if (r.planification_type !== "replanning") continue
+    const cd = new Date(`${r.RTG_ORD_PLAN_LOCAL_DATE}T00:00:00`)
+    if (cd.getDay() === 1) {
+      mondayReplanningCollections.add(`${r.SHP_FACILITY_ID}|${r.RTG_ORD_PLAN_LOCAL_DATE}`)
+    }
+  }
+
   for (const r of rows) {
     // Regional do roteiro: usa a coluna da planilha/query ou deriva do HUB.
     const regional = r.Regional || regionalForHub(r.SHP_FACILITY_ID)
@@ -216,7 +227,15 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
     // Aderência de prazo (dia/hora limite)
     const collectionDate = new Date(`${r.RTG_ORD_PLAN_LOCAL_DATE}T00:00:00`)
     const publishedAt = parseDateTime(r.updated_date, r.updated_time)
-    const deadline = getDeadline(collectionDate, r.planification_type, r.SHP_FACILITY_ID)
+    let deadline = getDeadline(collectionDate, r.planification_type, r.SHP_FACILITY_ID)
+
+    // Regra D-1 para coleta na TERÇA (replanning): só há prazo (segunda 17:00) SE existir
+    // roteirização D-1 para coleta na segunda anterior no mesmo HUB. Caso contrário, sem prazo.
+    if (deadline && r.planification_type === "replanning" && collectionDate.getDay() === 2) {
+      const prevMonday = addDays(collectionDate, -1)
+      const key = `${r.SHP_FACILITY_ID}|${prevMonday.getFullYear()}-${String(prevMonday.getMonth() + 1).padStart(2, "0")}-${String(prevMonday.getDate()).padStart(2, "0")}`
+      if (!mondayReplanningCollections.has(key)) deadline = null
+    }
 
     // Ordens sem regra de prazo (ex.: coleta no domingo) ficam fora do Routing Clock:
     // não contam no volume nem na performance, evitando inflar o indicador.
