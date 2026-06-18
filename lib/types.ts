@@ -1,5 +1,13 @@
 export type PlanificationType = "tactical" | "replanning"
 
+/**
+ * Tipo de roteirização exibido ao usuário:
+ *  - "W-1": planejamento tático (tactical), roteirizado na semana anterior
+ *  - "D-2": HUBs de longa distância com prazo de coleta + 3 dias úteis (exceção)
+ *  - "D-1": replanning padrão (dia anterior)
+ */
+export type TipoRoteirizacao = "D-1" | "D-2" | "W-1"
+
 /** Linha crua retornada pela query do BigQuery (ou pelo mock no preview). */
 export interface RawRoutingOrder {
   created_date: string // YYYY-MM-DD - início da roteirização
@@ -23,6 +31,7 @@ export type TmrState = "ok" | "risco" | "estouro"
 export interface RoutingOrder {
   facilityId: string
   planificationType: PlanificationType
+  tipoRoteirizacao: TipoRoteirizacao // D-1 / D-2 / W-1 (derivado para exibição/filtro)
   collectionDate: string // YYYY-MM-DD - data de coleta planejada
   routingDate: string // YYYY-MM-DD - data de início da roteirização
   publishedAt: string
@@ -75,6 +84,8 @@ export interface Filters {
   hub: string
   mes: string
   semana: string
+  // Tipo de roteirização: "TODOS" | "D-1" | "D-2" | "W-1"
+  tipo: string
   // Filtro por data de roteirização (created_date) - "YYYY-MM-DD" ou "" (sem filtro)
   rotInicio: string
   rotFim: string

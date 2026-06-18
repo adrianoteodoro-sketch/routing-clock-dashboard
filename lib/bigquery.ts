@@ -6,10 +6,10 @@ import { fetchRowsFromSheet, isSheetsConfigured } from "./google-sheets"
 // Mantida aqui para rodar quando o deploy estiver DENTRO do perímetro VPC do meli-bi-data.
 export const ROUTING_CLOCK_QUERY = `
 SELECT
-    DATE(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(f.SHP_TIMEZONE_ID, ro.RTG_ORD_DATE_CREATED_DTTM)) AS created_date,
-    TIME(DATETIME_TRUNC(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(f.SHP_TIMEZONE_ID, ro.RTG_ORD_DATE_CREATED_DTTM), SECOND)) AS created_time,
-    DATE(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(f.SHP_TIMEZONE_ID, ro.RTG_ORD_LAST_UPDATED_DTTM)) AS updated_date,
-    TIME(DATETIME_TRUNC(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(f.SHP_TIMEZONE_ID, ro.RTG_ORD_LAST_UPDATED_DTTM), SECOND)) AS updated_time,
+    DATE(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(COALESCE(f.SHP_TIMEZONE_ID, 'America/Sao_Paulo'), ro.RTG_ORD_DATE_CREATED_DTTM)) AS created_date,
+    TIME(DATETIME_TRUNC(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(COALESCE(f.SHP_TIMEZONE_ID, 'America/Sao_Paulo'), ro.RTG_ORD_DATE_CREATED_DTTM), SECOND)) AS created_time,
+    DATE(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(COALESCE(f.SHP_TIMEZONE_ID, 'America/Sao_Paulo'), ro.RTG_ORD_LAST_UPDATED_DTTM)) AS updated_date,
+    TIME(DATETIME_TRUNC(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(COALESCE(f.SHP_TIMEZONE_ID, 'America/Sao_Paulo'), ro.RTG_ORD_LAST_UPDATED_DTTM), SECOND)) AS updated_time,
     CONCAT(
         LPAD(CAST(DIV(ro.total_minutes, 60) AS STRING), 2, '0'), ':',
         LPAD(CAST(MOD(ro.total_minutes, 60) AS STRING), 2, '0')
@@ -62,8 +62,8 @@ FROM (
     SELECT
         ro.*, f.SHP_TIMEZONE_ID,
         DATETIME_DIFF(
-            DATETIME_TRUNC(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(f.SHP_TIMEZONE_ID, ro.RTG_ORD_LAST_UPDATED_DTTM), SECOND),
-            DATETIME_TRUNC(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(f.SHP_TIMEZONE_ID, ro.RTG_ORD_DATE_CREATED_DTTM), SECOND),
+            DATETIME_TRUNC(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(COALESCE(f.SHP_TIMEZONE_ID, 'America/Sao_Paulo'), ro.RTG_ORD_LAST_UPDATED_DTTM), SECOND),
+            DATETIME_TRUNC(\`meli-bi-data\`.COMMON_UDF.FN_API_TIMEZONE_CONVERT(COALESCE(f.SHP_TIMEZONE_ID, 'America/Sao_Paulo'), ro.RTG_ORD_DATE_CREATED_DTTM), SECOND),
             MINUTE
         ) AS total_minutes
     FROM \`meli-bi-data.WHOWNER.BT_SHP_LG_RTG_ORDER\` AS ro

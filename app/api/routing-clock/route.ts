@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
     hub: sp.get("hub") ?? "TODOS",
     mes: sp.get("mes") ?? "TODOS",
     semana: sp.get("semana") ?? "TODAS",
+    tipo: sp.get("tipo") ?? "TODOS",
     rotInicio: sp.get("rotInicio") ?? "",
     rotFim: sp.get("rotFim") ?? "",
     coletaInicio: sp.get("coletaInicio") ?? "",
