@@ -63,3 +63,9 @@ for (const [m, list] of Object.entries(examples)) {
   console.log(`   [${m}]`)
   for (const ex of list) console.log(`     HUB ${ex.hub} | coleta ${ex.coleta} | ${ex.tipo} | publicado ${ex.publicado}`)
 }
+
+console.log("\n6) Investigação BRXSP6 (datas distintas):")
+console.log("   ",
+  [...new Set(rows.filter((r) => r.SHP_FACILITY_ID === "BRXSP6").map((r) => `${r.RTG_ORD_PLAN_LOCAL_DATE}(${dow[new Date(r.RTG_ORD_PLAN_LOCAL_DATE + "T00:00:00").getDay()]}/${r.planification_type})`))].sort().join(", "))
+console.log("   -> tem coleta SEGUNDA 12/01 replanning?",
+  rows.some((r) => r.SHP_FACILITY_ID === "BRXSP6" && r.RTG_ORD_PLAN_LOCAL_DATE === "2026-01-12" && r.planification_type === "replanning"))
