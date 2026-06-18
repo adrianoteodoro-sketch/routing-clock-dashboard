@@ -131,6 +131,14 @@ export function FiltersBar({ filters, opcoes, onChange }: FiltersBarProps) {
             options={opcoes.semanas}
             onChange={(v) => onChange({ semana: v })}
           />
+          <FilterSelect
+            label="Tipo Roteirização"
+            value={filters.tipo}
+            allLabel="TODOS"
+            options={["D-1", "D-2", "W-1"]}
+            onChange={(v) => onChange({ tipo: v })}
+            highlight
+          />
           <DateRangeFilter
             label="Data Roteirização"
             inicio={filters.rotInicio}

@@ -11,6 +11,7 @@ import type {
   RegionalResumo,
   RoutingOrder,
   SeriePonto,
+  TipoRoteirizacao,
   WaterfallPonto,
 } from "./types"
 import { regionalForHub } from "./hubs"
@@ -99,15 +100,8 @@ function addBusinessDays(date: Date, days: number): Date {
   return d
 }
 
-/**
- * Retorna o prazo alternativo se a coleta casar com alguma exceção configurada
- * em DEADLINE_EXCEPTIONS. Caso contrário, retorna null (usa-se a regra padrão).
- */
-function getExceptionDeadline(
-  facilityId: string,
-  collectionDate: Date,
-  type: "tactical" | "replanning",
-): Date | null {
+/** Retorna a primeira exceção de DEADLINE_EXCEPTIONS que casa com a coleta, ou null. */
+function matchException(facilityId: string, collectionDate: Date, type: "tactical" | "replanning") {
   const ymd = `${collectionDate.getFullYear()}-${String(collectionDate.getMonth() + 1).padStart(2, "0")}-${String(
     collectionDate.getDate(),
   ).padStart(2, "0")}`
@@ -117,12 +111,41 @@ function getExceptionDeadline(
     if (exc.tipos && !exc.tipos.includes(type)) continue
     if (exc.deData && ymd < exc.deData) continue
     if (exc.ateData && ymd > exc.ateData) continue
-    // Coleta no fim de semana não tem prazo nesta regra (consistente com o padrão).
-    const dow = collectionDate.getDay()
-    if (dow === 0 || dow === 6) return null
-    return atHour(addBusinessDays(collectionDate, exc.regraDiasUteis), exc.hora, exc.minuto ?? 0)
+    return exc
   }
   return null
+}
+
+/**
+ * Retorna o prazo alternativo se a coleta casar com alguma exceção configurada
+ * em DEADLINE_EXCEPTIONS. Caso contrário, retorna null (usa-se a regra padrão).
+ */
+function getExceptionDeadline(
+  facilityId: string,
+  collectionDate: Date,
+  type: "tactical" | "replanning",
+): Date | null {
+  const exc = matchException(facilityId, collectionDate, type)
+  if (!exc) return null
+  // Coleta no fim de semana não tem prazo nesta regra (consistente com o padrão).
+  const dow = collectionDate.getDay()
+  if (dow === 0 || dow === 6) return null
+  return atHour(addBusinessDays(collectionDate, exc.regraDiasUteis), exc.hora, exc.minuto ?? 0)
+}
+
+/**
+ * Classifica o tipo de roteirização para exibição/filtro:
+ *  - HUB de exceção (longa distância) -> "D-2"
+ *  - tactical -> "W-1"
+ *  - replanning padrão -> "D-1"
+ */
+function getTipoRoteirizacao(
+  facilityId: string,
+  collectionDate: Date,
+  type: "tactical" | "replanning",
+): TipoRoteirizacao {
+  if (matchException(facilityId, collectionDate, type)) return "D-2"
+  return type === "tactical" ? "W-1" : "D-1"
 }
 
 /**
@@ -249,6 +272,7 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
     result.push({
       facilityId: r.SHP_FACILITY_ID,
       planificationType: r.planification_type,
+      tipoRoteirizacao: getTipoRoteirizacao(r.SHP_FACILITY_ID, collectionDate, r.planification_type),
       collectionDate: r.RTG_ORD_PLAN_LOCAL_DATE,
       routingDate: r.created_date,
       publishedAt: publishedAt.toISOString(),
@@ -281,6 +305,7 @@ function applyFilters(orders: RoutingOrder[], f: Filters): RoutingOrder[] {
   if (f.hub && f.hub !== "TODOS" && o.facilityId !== f.hub) return false
   if (f.mes !== "TODOS" && o.month !== f.mes) return false
     if (f.semana !== "TODAS" && o.week !== f.semana) return false
+    if (f.tipo && f.tipo !== "TODOS" && o.tipoRoteirizacao !== f.tipo) return false
     // Intervalo por data de roteirização (created_date)
     if (f.rotInicio && o.routingDate < f.rotInicio) return false
     if (f.rotFim && o.routingDate > f.rotFim) return false
