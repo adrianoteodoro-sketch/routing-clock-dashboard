@@ -14,6 +14,7 @@ for (const r of rows) {
 
 const dow = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"]
 const dropped = {}
+const examples = {}
 let kept = 0
 let semData = 0
 
@@ -35,6 +36,15 @@ for (const r of rows) {
   }
   if (motivo) {
     dropped[motivo] = (dropped[motivo] ?? 0) + 1
+    if (!examples[motivo]) examples[motivo] = []
+    if (examples[motivo].length < 3) {
+      examples[motivo].push({
+        hub: r.SHP_FACILITY_ID,
+        coleta: `${r.RTG_ORD_PLAN_LOCAL_DATE} (${dow[cd.getDay()]})`,
+        tipo: r.planification_type,
+        publicado: `${r.updated_date} ${r.updated_time}`,
+      })
+    }
   } else {
     kept++
   }
@@ -48,3 +58,8 @@ for (const [m, n] of Object.entries(dropped).sort((a, b) => b[1] - a[1])) {
 }
 const totalDropped = Object.values(dropped).reduce((a, b) => a + b, 0) + semData
 console.log("Total descartado:", totalDropped, "| Soma:", kept + totalDropped, "vs parseadas:", rows.length)
+console.log("\n5) Exemplos de roteiros descartados:")
+for (const [m, list] of Object.entries(examples)) {
+  console.log(`   [${m}]`)
+  for (const ex of list) console.log(`     HUB ${ex.hub} | coleta ${ex.coleta} | ${ex.tipo} | publicado ${ex.publicado}`)
+}
