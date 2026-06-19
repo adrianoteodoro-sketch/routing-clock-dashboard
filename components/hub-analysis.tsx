@@ -49,12 +49,17 @@ function fmtDay(ymd: string): string {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(d)
 }
 
-/** Formata apenas o horário (HH:MM) de uma data ISO. */
+/**
+ * Formata apenas o horário (HH:MM) de uma data ISO.
+ * Usa timeZone "UTC" porque created_time/updated_time já vêm convertidos para o fuso local
+ * da operação no BigQuery e são serializados como UTC. Reformatar no fuso do navegador
+ * deslocaria o horário; UTC preserva exatamente o valor exibido no sheet.
+ */
 function fmtTime(iso: string): string {
   if (!iso) return "-"
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return "-"
-  return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(d)
+  return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(d)
 }
 
 /** Cartão de KPI compacto da seção. */
