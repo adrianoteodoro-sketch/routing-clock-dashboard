@@ -127,16 +127,7 @@ export function RoutingClockDashboard() {
           <>
             <KpiCards kpis={data.kpis} />
 
-            <WaterfallChart data={data.waterfall} />
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <OffendersList ofensores={data.ofensores} />
-              </div>
-              <SeverityRange ranges={data.rangeSeveridade} />
-            </div>
-
-            {/* HUBs Impactados (trazido da aba Análise de HUBs) */}
+            {/* HUBs Impactados (logo abaixo dos big numbers) */}
             <section className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger/10 text-danger">
@@ -151,6 +142,15 @@ export function RoutingClockDashboard() {
               </div>
               <HubTable secao={data.hubAnalise.atraso} metric="atraso" />
             </section>
+
+            <WaterfallChart data={data.waterfall} />
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <OffendersList ofensores={data.ofensores} />
+              </div>
+              <SeverityRange ranges={data.rangeSeveridade} />
+            </div>
 
             {/* Gráficos de performance ao final da página */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
