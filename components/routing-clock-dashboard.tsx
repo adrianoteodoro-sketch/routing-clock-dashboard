@@ -8,8 +8,8 @@ import { KpiCards } from "@/components/kpi-cards"
 import { MonthlyChart, WeeklyChart } from "@/components/performance-charts"
 import { WaterfallChart } from "@/components/waterfall-chart"
 import { OffendersList, SeverityRange } from "@/components/offenders-severity"
-import { HubAnalysis } from "@/components/hub-analysis"
-import { Loader2, LayoutDashboard, Building2 } from "lucide-react"
+import { HubAnalysis, HubTable } from "@/components/hub-analysis"
+import { Loader2, LayoutDashboard, Building2, AlertTriangle } from "lucide-react"
 import type { DashboardData, Filters } from "@/lib/types"
 
 type TabId = "geral" | "hubs"
@@ -127,11 +127,6 @@ export function RoutingClockDashboard() {
           <>
             <KpiCards kpis={data.kpis} />
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <MonthlyChart data={data.mensal} meta={data.kpis.meta} />
-              <WeeklyChart data={data.semanal} meta={data.kpis.meta} />
-            </div>
-
             <WaterfallChart data={data.waterfall} />
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -139,6 +134,28 @@ export function RoutingClockDashboard() {
                 <OffendersList ofensores={data.ofensores} />
               </div>
               <SeverityRange ranges={data.rangeSeveridade} />
+            </div>
+
+            {/* HUBs Impactados (trazido da aba Análise de HUBs) */}
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger/10 text-danger">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold uppercase tracking-tight text-foreground">HUBs Impactados</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Facilities que publicaram roteiros após o prazo de entrega
+                  </p>
+                </div>
+              </div>
+              <HubTable secao={data.hubAnalise.atraso} metric="atraso" />
+            </section>
+
+            {/* Gráficos de performance ao final da página */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <MonthlyChart data={data.mensal} meta={data.kpis.meta} />
+              <WeeklyChart data={data.semanal} meta={data.kpis.meta} />
             </div>
           </>
         ) : (

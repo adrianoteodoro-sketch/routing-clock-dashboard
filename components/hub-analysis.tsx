@@ -49,6 +49,19 @@ function fmtDay(ymd: string): string {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(d)
 }
 
+/**
+ * Formata apenas o horário (HH:MM) de uma data ISO.
+ * Usa timeZone "UTC" porque created_time/updated_time já vêm convertidos para o fuso local
+ * da operação no BigQuery e são serializados como UTC. Reformatar no fuso do navegador
+ * deslocaria o horário; UTC preserva exatamente o valor exibido no sheet.
+ */
+function fmtTime(iso: string): string {
+  if (!iso) return "-"
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return "-"
+  return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(d)
+}
+
 /** Cartão de KPI compacto da seção. */
 function SectionKpi({
   icon,
@@ -228,10 +241,12 @@ function DailyBreakdown({ abertura, metric }: { abertura: HubDiaResumo[]; metric
 
       {/* Tabela diária */}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-xs">
+        <table className="w-full min-w-[760px] border-collapse text-xs">
           <thead>
             <tr className="text-left text-muted-foreground">
               <th className="px-3 py-2 font-semibold uppercase tracking-wide">Dia (coleta)</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Início</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Fim</th>
               <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Roteiros</th>
               <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Atrasos</th>
               <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide">Atraso médio</th>
@@ -248,6 +263,8 @@ function DailyBreakdown({ abertura, metric }: { abertura: HubDiaResumo[]; metric
               return (
                 <tr key={d.dia} className="border-t border-border/60">
                   <td className="px-3 py-2 font-medium text-foreground">{fmtDay(d.dia)}</td>
+                  <td className="px-3 py-2 text-right font-medium text-foreground">{fmtTime(d.inicioISO)}</td>
+                  <td className="px-3 py-2 text-right font-medium text-foreground">{fmtTime(d.fimISO)}</td>
                   <td className="px-3 py-2 text-right text-muted-foreground">{d.total}</td>
                   <td className={`px-3 py-2 text-right font-bold ${temAtraso ? "text-danger" : "text-muted-foreground"}`}>
                     {d.atrasos}
@@ -276,7 +293,7 @@ function DailyBreakdown({ abertura, metric }: { abertura: HubDiaResumo[]; metric
 }
 
 /** Tabela de HUBs com drill-down por roteiro. */
-function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric }) {
+export function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric }) {
   const [open, setOpen] = useState<string | null>(null)
   const magLabel = metric === "atraso" ? "Atraso" : "Excesso TMR"
 

@@ -275,6 +275,7 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
       tipoRoteirizacao: getTipoRoteirizacao(r.SHP_FACILITY_ID, collectionDate, r.planification_type),
       collectionDate: r.RTG_ORD_PLAN_LOCAL_DATE,
       routingDate: r.created_date,
+      routingStartedAt: parseDateTime(r.created_date, r.created_time).toISOString(),
       publishedAt: publishedAt.toISOString(),
       deadline: deadline.toISOString(),
       minutesLate,
@@ -448,8 +449,20 @@ function buildAberturaDiaria(all: RoutingOrder[]): HubDiaResumo[] {
     .map(([dia, list]) => {
       const atrasados = list.filter((o) => !o.withinDeadline)
       const estourados = list.filter((o) => o.tmrState === "estouro")
+      // Janela de roteirização do dia: início mais cedo e fim mais tarde.
+      const inicioISO = list
+        .map((o) => o.routingStartedAt)
+        .filter(Boolean)
+        .sort()[0] ?? ""
+      const fimISO = list
+        .map((o) => o.publishedAt)
+        .filter(Boolean)
+        .sort()
+        .slice(-1)[0] ?? ""
       return {
         dia,
+        inicioISO,
+        fimISO,
         total: list.length,
         atrasos: atrasados.length,
         atrasoMedioMin: avg(atrasados.map((o) => o.minutesLate)),
