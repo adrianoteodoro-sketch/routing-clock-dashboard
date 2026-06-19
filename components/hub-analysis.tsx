@@ -276,7 +276,7 @@ function DailyBreakdown({ abertura, metric }: { abertura: HubDiaResumo[]; metric
 }
 
 /** Tabela de HUBs com drill-down por roteiro. */
-function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric }) {
+export function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Metric }) {
   const [open, setOpen] = useState<string | null>(null)
   const magLabel = metric === "atraso" ? "Atraso" : "Excesso TMR"
 
