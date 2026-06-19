@@ -34,7 +34,8 @@ export interface RoutingOrder {
   tipoRoteirizacao: TipoRoteirizacao // D-1 / D-2 / W-1 (derivado para exibição/filtro)
   collectionDate: string // YYYY-MM-DD - data de coleta planejada
   routingDate: string // YYYY-MM-DD - data de início da roteirização
-  publishedAt: string
+  routingStartedAt: string // ISO - data/hora de início da roteirização (created)
+  publishedAt: string // ISO - data/hora de fim da roteirização (publicação)
   deadline: string // ISO - data/hora limite de publicação
   minutesLate: number // minutos publicados após o prazo (0 se dentro do prazo)
   durationMinutes: number
@@ -134,6 +135,8 @@ export interface HubRoteiroDetalhe {
 /** Abertura diária de um HUB (atraso + TMR juntos). */
 export interface HubDiaResumo {
   dia: string // YYYY-MM-DD (data de coleta)
+  inicioISO: string // ISO - início mais cedo da roteirização no dia ("" se sem dados)
+  fimISO: string // ISO - fim mais tarde da roteirização no dia ("" se sem dados)
   total: number // roteiros do dia
   atrasos: number // roteiros fora do prazo no dia
   atrasoMedioMin: number // atraso médio (min) entre os atrasados do dia
