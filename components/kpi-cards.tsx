@@ -46,32 +46,11 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
             style={{ width: `${Math.min(kpis.performanceAtual, 100)}%` }}
           />
         </div>
-        <div className="mt-3 flex items-center gap-2 text-xs">
-          <Target className="h-3.5 w-3.5 text-muted-foreground" />
+        <div className="mt-3 flex items-center gap-2 text-base">
+          <Target className="h-5 w-5 text-muted-foreground" />
           <span className="font-semibold uppercase tracking-wide text-muted-foreground">Meta</span>
           <span className="font-bold text-foreground">{kpis.meta.toFixed(2)}%</span>
         </div>
-      </div>
-
-      {/* Volume total */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-start justify-between">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-warning/15 text-warning">
-            <Package className="h-5 w-5" />
-          </div>
-          <span
-            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-              volVar.positive ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
-            }`}
-          >
-            {volVar.text}
-          </span>
-        </div>
-        <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Total de Roteiros
-        </p>
-        <p className="mt-1 text-4xl font-bold tracking-tight text-foreground">{formatNumber(kpis.volumeTotal)}</p>
-        <p className="mt-3 text-xs text-muted-foreground">Ordens de roteirização no período</p>
       </div>
 
       {/* Delta vs Meta */}
@@ -99,9 +78,26 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
           {deltaPositive ? "+" : ""}
           {delta.toFixed(2)} p.p.
         </p>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Routing Clock ({kpis.performanceAtual.toFixed(2)}%) vs Meta ({kpis.meta.toFixed(2)}%)
+      </div>
+
+      {/* Volume total */}
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="flex items-start justify-between">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-warning/15 text-warning">
+            <Package className="h-5 w-5" />
+          </div>
+          <span
+            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+              volVar.positive ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
+            }`}
+          >
+            {volVar.text}
+          </span>
+        </div>
+        <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Total de Roteiros
         </p>
+        <p className="mt-1 text-4xl font-bold tracking-tight text-foreground">{formatNumber(kpis.volumeTotal)}</p>
       </div>
     </div>
   )
