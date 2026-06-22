@@ -157,10 +157,10 @@ function getTipoRoteirizacao(
  *  - Coleta segunda (próxima semana) -> quarta da semana vigente 18:00
  *  - Coleta terça (próxima semana) -> quinta da semana anterior 18:00
  *  - Coleta qua/qui/sex -> quinta da semana vigente 18:00
- *  - Coleta sábado (excepcional) -> quarta da mesma semana 13:00
- * D-1 (replanning): entrega no dia útil anterior à coleta às 17:00
+ *  - Coleta sábado (excepcional) -> quarta da mesma semana 18:00
+ * D-1 (replanning): entrega no dia útil anterior à coleta às 18:00
  *  - ter->seg, qua->ter, qui->qua, sex->qui, seg->sex anterior
- *  - sábado -> quarta anterior às 14:00 (regra específica do sábado)
+ *  - sábado -> quarta anterior às 18:00
  */
 export function getDeadline(
   collectionDate: Date,
@@ -192,26 +192,26 @@ export function getDeadline(
       return atHour(addDays(prevMonday, 3), 18)
     }
     if (dow === 6) {
-      // sábado excepcional -> quarta da própria semana 13:00
-      return atHour(addDays(monday, 2), 13)
+      // sábado excepcional -> quarta da própria semana 18:00
+      return atHour(addDays(monday, 2), 18)
     }
     return null
   }
 
-  // replanning (D-1) - dia útil anterior 17:00
+  // replanning (D-1) - dia útil anterior 18:00
   switch (dow) {
     case 2: // terça -> segunda
-      return atHour(addDays(collectionDate, -1), 17)
+      return atHour(addDays(collectionDate, -1), 18)
     case 3: // quarta -> terça
-      return atHour(addDays(collectionDate, -1), 17)
+      return atHour(addDays(collectionDate, -1), 18)
     case 4: // quinta -> quarta
-      return atHour(addDays(collectionDate, -1), 17)
+      return atHour(addDays(collectionDate, -1), 18)
     case 5: // sexta -> quinta
-      return atHour(addDays(collectionDate, -1), 17)
+      return atHour(addDays(collectionDate, -1), 18)
     case 1: // segunda -> sexta anterior
-      return atHour(addDays(collectionDate, -3), 17)
-    case 6: // sábado -> quarta anterior 14:00
-      return atHour(addDays(collectionDate, -3), 14)
+      return atHour(addDays(collectionDate, -3), 18)
+    case 6: // sábado -> quarta anterior 18:00
+      return atHour(addDays(collectionDate, -3), 18)
     default:
       return null
   }
