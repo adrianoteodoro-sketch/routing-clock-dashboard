@@ -97,18 +97,6 @@ export function RoutingClockDashboard() {
       />
 
       <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start">
-        {/* Barra lateral de filtros (recolhível) */}
-        {data && (
-          <FiltersBar
-            filters={filters}
-            opcoes={data.opcoes}
-            onChange={handleFilterChange}
-            collapsed={filtersCollapsed}
-            onToggle={() => setFiltersCollapsed((c) => !c)}
-            onReset={() => setFilters(DEFAULT_FILTERS)}
-          />
-        )}
-
         {/* Conteúdo principal */}
         <div className="flex min-w-0 flex-1 flex-col gap-6">
           {/* Seletor de abas */}
@@ -173,6 +161,18 @@ export function RoutingClockDashboard() {
             <HubAnalysis data={data.hubAnalise} selectedHub={filters.hub} />
           )}
         </div>
+
+        {/* Barra lateral de filtros (recolhível) - lado direito */}
+        {data && (
+          <FiltersBar
+            filters={filters}
+            opcoes={data.opcoes}
+            onChange={handleFilterChange}
+            collapsed={filtersCollapsed}
+            onToggle={() => setFiltersCollapsed((c) => !c)}
+            onReset={() => setFilters(DEFAULT_FILTERS)}
+          />
+        )}
       </main>
     </div>
   )

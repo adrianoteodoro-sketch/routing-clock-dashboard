@@ -1,6 +1,6 @@
 "use client"
 
-import { Filter, PanelLeftClose, PanelLeftOpen, RotateCcw } from "lucide-react"
+import { Filter, PanelRightClose, PanelRightOpen, RotateCcw } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { DashboardOpcoes, Filters } from "@/lib/types"
 
@@ -90,42 +90,36 @@ function DateRangeFilter({
 }
 
 export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onReset }: FiltersBarProps) {
-  // Quando recolhida, mostra apenas uma faixa fina com o botão de abrir.
+  // Quando recolhida, mostra apenas uma faixa fina e discreta com o botão de abrir.
   if (collapsed) {
     return (
-      <aside className="flex shrink-0 flex-col items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
+      <aside className="flex shrink-0 flex-col items-center gap-2 self-start">
         <button
           onClick={onToggle}
           aria-label="Abrir filtros"
-          className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-opacity hover:opacity-90"
+          title="Abrir filtros"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-secondary/60 hover:text-foreground"
         >
-          <PanelLeftOpen className="h-5 w-5" />
+          <PanelRightOpen className="h-4 w-4" />
         </button>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/50 text-muted-foreground">
-          <Filter className="h-4 w-4" />
-        </div>
       </aside>
     )
   }
 
   return (
-    <aside className="flex w-full shrink-0 flex-col gap-5 rounded-2xl border border-border bg-card p-5 shadow-sm lg:w-72">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Filter className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-tight text-foreground">Filtros</h2>
-            <p className="text-xs text-muted-foreground">Contexto da análise</p>
-          </div>
+    <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-border bg-card/60 p-4 lg:w-64">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Filter className="h-4 w-4" />
+          <h2 className="text-xs font-bold uppercase tracking-wide">Filtros</h2>
         </div>
         <button
           onClick={onToggle}
           aria-label="Recolher filtros"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+          title="Recolher filtros"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
         >
-          <PanelLeftClose className="h-5 w-5" />
+          <PanelRightClose className="h-4 w-4" />
         </button>
       </div>
 
