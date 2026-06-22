@@ -146,13 +146,6 @@ export function FiltersBar({ filters, opcoes, onChange }: FiltersBarProps) {
             onInicio={(v) => onChange({ rotInicio: v })}
             onFim={(v) => onChange({ rotFim: v })}
           />
-          <DateRangeFilter
-            label="Data Coleta"
-            inicio={filters.coletaInicio}
-            fim={filters.coletaFim}
-            onInicio={(v) => onChange({ coletaInicio: v })}
-            onFim={(v) => onChange({ coletaFim: v })}
-          />
         </div>
       </div>
     </div>
