@@ -1,6 +1,6 @@
 "use client"
 
-import { TrendingUp, TrendingDown, Package, Target, Gauge } from "lucide-react"
+import { TrendingUp, Package, Target } from "lucide-react"
 import type { Kpis } from "@/lib/types"
 
 function formatNumber(n: number): string {
@@ -17,10 +17,9 @@ function variation(current: number, previous: number): { text: string; positive:
 export function KpiCards({ kpis }: { kpis: Kpis }) {
   const perfVar = variation(kpis.perfUltimaSemana, kpis.perfSemanaAnterior)
   const volVar = variation(kpis.volumeUltimaSemana, kpis.volumeSemanaAnterior)
-  const gapPositive = kpis.gapPp >= 0
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
       {/* Performance atual */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex items-start justify-between">
@@ -35,7 +34,7 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
             {perfVar.text}
           </span>
         </div>
-        <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Performance Atual</p>
+        <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Routing Clock XD</p>
         <p className="mt-1 text-4xl font-bold tracking-tight text-foreground">
           {kpis.performanceAtual.toFixed(2)}%
         </p>
@@ -62,7 +61,7 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
           </span>
         </div>
         <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Volume Total (Roteiros)
+          Total de Roteiros
         </p>
         <p className="mt-1 text-4xl font-bold tracking-tight text-foreground">{formatNumber(kpis.volumeTotal)}</p>
         <p className="mt-3 text-xs text-muted-foreground">Ordens de roteirização no período</p>
@@ -76,7 +75,7 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
           </div>
           <span className="text-xs font-bold uppercase tracking-wide text-success">Meta Corporativa</span>
         </div>
-        <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Meta de Performance</p>
+        <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Meta Routing Clock</p>
         <p className="mt-1 text-4xl font-bold tracking-tight text-foreground">{kpis.meta.toFixed(2)}%</p>
         <div className="mt-3 flex items-center gap-2">
           <span className={`h-2.5 w-2.5 rounded-full ${kpis.metaAtingida ? "bg-success" : "bg-danger"}`} />
@@ -84,31 +83,6 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
             {kpis.metaAtingida ? "Meta Atingida" : "Abaixo da Meta"}
           </span>
         </div>
-      </div>
-
-      {/* Gap para meta */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-start justify-between">
-          <div
-            className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-              gapPositive ? "bg-success/15 text-success" : "bg-danger/15 text-danger"
-            }`}
-          >
-            <Gauge className="h-5 w-5" />
-          </div>
-          <span className={`text-xs font-bold uppercase tracking-wide ${gapPositive ? "text-success" : "text-danger"}`}>
-            Gap de Entrega
-          </span>
-        </div>
-        <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Gap para Meta</p>
-        <p className={`mt-1 flex items-center gap-1 text-4xl font-bold tracking-tight ${gapPositive ? "text-success" : "text-danger"}`}>
-          {gapPositive ? <TrendingUp className="h-7 w-7" /> : <TrendingDown className="h-7 w-7" />}
-          {gapPositive ? "+" : ""}
-          {kpis.gapPp.toFixed(2)}pp
-        </p>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Pontos percentuais {gapPositive ? "acima" : "abaixo"} da meta
-        </p>
       </div>
     </div>
   )
