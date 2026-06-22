@@ -154,7 +154,8 @@ function getTipoRoteirizacao(
  * da data de coleta e do tipo de planificação.
  *
  * W-1 (tactical):
- *  - Coleta seg/ter (próxima semana) -> quarta da semana vigente 18:00
+ *  - Coleta segunda (próxima semana) -> quarta da semana vigente 18:00
+ *  - Coleta terça (próxima semana) -> quinta da semana anterior 18:00
  *  - Coleta qua/qui/sex -> quinta da semana vigente 18:00
  *  - Coleta sábado (excepcional) -> quarta da mesma semana 13:00
  * D-1 (replanning): entrega no dia útil anterior à coleta às 17:00
@@ -178,9 +179,13 @@ export function getDeadline(
   if (type === "tactical") {
     // Semana vigente = semana anterior à coleta
     const prevMonday = addDays(monday, -7)
-    if (dow === 1 || dow === 2) {
-      // quarta da semana vigente 18:00
+    if (dow === 1) {
+      // segunda -> quarta da semana vigente 18:00
       return atHour(addDays(prevMonday, 2), 18)
+    }
+    if (dow === 2) {
+      // terça -> quinta da semana anterior 18:00
+      return atHour(addDays(prevMonday, 3), 18)
     }
     if (dow === 3 || dow === 4 || dow === 5) {
       // quinta da semana vigente 18:00
