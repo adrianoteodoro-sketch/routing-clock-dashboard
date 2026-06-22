@@ -1,4 +1,5 @@
 import type {
+  D2Row,
   DashboardData,
   Filters,
   HubAnalise,
@@ -290,6 +291,57 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
       month: `${created.getFullYear()}/${created.getMonth() + 1}`,
       week: `W${isoWeek(created)}`,
       reason,
+    })
+  }
+
+  return result
+}
+
+/**
+ * Converte o histórico Routing By Meli 1.0 (aba "Routing_Clock_D-2") em RoutingOrder.
+ *
+ * Esses registros vêm de formulário e só trazem o desfecho de prazo (coluna O):
+ *   "Entrega no prazo" -> dentro da meta | "Entrega fora do prazo" -> fora da meta.
+ * Não há dados de TMR/duração/horário, então esses campos ficam zerados/vazios.
+ * Todos são classificados como tipo "D-2" e somam no volume e na performance.
+ */
+export function processD2Rows(rows: D2Row[]): RoutingOrder[] {
+  const result: RoutingOrder[] = []
+
+  for (const r of rows) {
+    if (!r.hub) continue
+    const regional = regionalForHub(r.hub)
+    if (regional === "N/D") continue
+
+    // Âncora temporal para mês/semana: data de roteirização (coluna A); se vazia, usa a coleta.
+    const ancora = r.dataRoteirizacao || r.dataColeta
+    if (!ancora) continue
+    const ancoraDate = new Date(`${ancora}T00:00:00`)
+    if (Number.isNaN(ancoraDate.getTime())) continue
+
+    const withinDeadline = r.entregaNoPrazo
+
+    result.push({
+      facilityId: r.hub,
+      planificationType: "replanning",
+      tipoRoteirizacao: "D-2",
+      collectionDate: r.dataColeta || ancora,
+      routingDate: ancora,
+      routingStartedAt: "", // sem horário no formulário
+      publishedAt: "", // sem horário no formulário
+      deadline: "",
+      minutesLate: 0, // formulário não captura o atraso em minutos
+      durationMinutes: 0,
+      tmrMinutes: 0,
+      tmrTargetMinutes: 0,
+      tmrExcessMinutes: 0,
+      tmrState: "ok",
+      withinDeadline,
+      isAdherent: withinDeadline,
+      regional,
+      month: `${ancoraDate.getFullYear()}/${ancoraDate.getMonth() + 1}`,
+      week: `W${isoWeek(ancoraDate)}`,
+      reason: withinDeadline ? "Aderente" : "Fora do prazo de entrega",
     })
   }
 

@@ -1,5 +1,5 @@
 import { GoogleAuth } from "google-auth-library"
-import type { PlanificationType, RawRoutingOrder } from "./types"
+import type { D2Row, PlanificationType, RawRoutingOrder } from "./types"
 import { regionalForHub } from "./hubs"
 
 /**
@@ -296,4 +296,57 @@ export async function fetchRowsFromSheet(): Promise<RawRoutingOrder[]> {
 
   const json = (await res.json()) as { values?: string[][] }
   return parseValues(json.values ?? [])
+}
+
+/** Nome da aba com o histórico Routing By Meli 1.0 (roteirizações D-2 via formulário). */
+const D2_SHEET_TAB = "Routing_Clock_D-2"
+
+/**
+ * Lê a aba "Routing_Clock_D-2" (histórico RBM 1.0). Mapeia por posição de coluna:
+ *   A (0) = data da roteirização | B (1) = HUB | C (2) = data da coleta
+ *   O (14) = "Entrega no Prazo?"  -> "Entrega no prazo" = dentro da meta
+ * Retorna [] se a aba não existir ou não estiver configurado (não quebra o fluxo principal).
+ */
+export async function fetchD2RowsFromSheet(): Promise<D2Row[]> {
+  const credentials = getCredentials()
+  const rawId = process.env.GOOGLE_SHEET_ID
+  if (!credentials || !rawId) return []
+
+  const sheetId = extractSheetId(rawId)
+  const token = await getAccessToken(credentials)
+  const range = `'${D2_SHEET_TAB.replace(/'/g, "''")}'!A:R`
+
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}` +
+    `/values/${encodeURIComponent(range)}?majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE`
+
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) {
+    const body = await res.text()
+    console.log(`[v0] Aba ${D2_SHEET_TAB} indisponível (${res.status}): ${body.slice(0, 150)}`)
+    return []
+  }
+
+  const json = (await res.json()) as { values?: string[][] }
+  const values = json.values ?? []
+  if (values.length < 2) return []
+
+  const rows: D2Row[] = []
+  // Pula o cabeçalho (linha 0).
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r]
+    if (!row || row.length === 0) continue
+    const hub = (row[1] ?? "").trim() // coluna B
+    const entregaRaw = (row[14] ?? "").trim() // coluna O
+    if (!hub || !entregaRaw) continue
+    // "Entrega no prazo" = dentro da meta; "Entrega fora do prazo" = fora da meta.
+    const entregaNoPrazo = !entregaRaw.toLowerCase().includes("fora")
+    rows.push({
+      hub,
+      dataRoteirizacao: normalizeDate(row[0] ?? ""), // coluna A (ignora a parte de hora)
+      dataColeta: normalizeDate(row[2] ?? ""), // coluna C
+      entregaNoPrazo,
+    })
+  }
+  return rows
 }

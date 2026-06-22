@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { fetchRoutingOrders } from "@/lib/bigquery"
-import { refreshSheetDataSources } from "@/lib/google-sheets"
-import { buildDashboard, processRows } from "@/lib/routing-clock"
+import { fetchD2RowsFromSheet, refreshSheetDataSources } from "@/lib/google-sheets"
+import { buildDashboard, processD2Rows, processRows } from "@/lib/routing-clock"
 import type { Filters } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -33,8 +33,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const { rows, fonte } = await fetchRoutingOrders()
-    const orders = processRows(rows)
+    // Busca a base principal (RBM 2.0) e o histórico RBM 1.0 (aba D-2) em paralelo.
+    const [{ rows, fonte }, d2rows] = await Promise.all([
+      fetchRoutingOrders(),
+      fetchD2RowsFromSheet().catch((e) => {
+        console.log("[v0] Falha ao ler aba Routing_Clock_D-2:", (e as Error).message)
+        return []
+      }),
+    ])
+
+    // Mescla os roteiros D-2 (histórico) com a base atual para somar no volume total.
+    const orders = [...processRows(rows), ...processD2Rows(d2rows)]
     const data = buildDashboard(orders, filters, fonte)
     return NextResponse.json(data)
   } catch (error) {
