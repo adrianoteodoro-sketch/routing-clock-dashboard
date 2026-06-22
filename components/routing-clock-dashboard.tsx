@@ -14,14 +14,42 @@ import type { DashboardData, Filters } from "@/lib/types"
 
 type TabId = "geral" | "hubs"
 
+// Data de hoje no formato YYYY-MM-DD (fuso local), usada para iniciar os filtros de roteirização.
+function todayISO(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+const TODAY = todayISO()
+
+// Formata "YYYY-MM-DD" -> "22 de junho de 2026" (pt-BR).
+function formatDateBR(iso: string): string {
+  if (!iso) return ""
+  const [y, m, d] = iso.split("-").map(Number)
+  if (!y || !m || !d) return iso
+  const date = new Date(y, m - 1, d)
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+}
+
+// Monta o rótulo da data de roteirização exibido no topo do report.
+function routingDateLabel(rotInicio: string, rotFim: string): string {
+  if (!rotInicio && !rotFim) return "Todas as datas"
+  if (rotInicio && rotFim && rotInicio === rotFim) return formatDateBR(rotInicio)
+  if (rotInicio && rotFim) return `${formatDateBR(rotInicio)} — ${formatDateBR(rotFim)}`
+  return formatDateBR(rotInicio || rotFim)
+}
+
 const DEFAULT_FILTERS: Filters = {
   regional: "TODAS",
   hub: "TODOS",
   mes: "TODOS",
   semana: "TODAS",
   tipo: "TODOS",
-  rotInicio: "",
-  rotFim: "",
+  rotInicio: TODAY,
+  rotFim: TODAY,
   coletaInicio: "",
   coletaFim: "",
 }
@@ -136,6 +164,16 @@ export function RoutingClockDashboard() {
             </div>
           ) : tab === "geral" ? (
             <>
+              {/* Data da roteirização (mesma do filtro) - destaque para report gerencial */}
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Data da Roteirização
+                </span>
+                <span className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                  {routingDateLabel(filters.rotInicio, filters.rotFim)}
+                </span>
+              </div>
+
               <KpiCards kpis={data.kpis} />
 
               <WaterfallChart data={data.waterfall} />
