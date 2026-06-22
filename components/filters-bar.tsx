@@ -1,6 +1,6 @@
 "use client"
 
-import { Filter } from "lucide-react"
+import { Filter, PanelLeftClose, PanelLeftOpen, RotateCcw } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { DashboardOpcoes, Filters } from "@/lib/types"
 
@@ -8,6 +8,9 @@ interface FiltersBarProps {
   filters: Filters
   opcoes: DashboardOpcoes
   onChange: (next: Partial<Filters>) => void
+  collapsed: boolean
+  onToggle: () => void
+  onReset?: () => void
 }
 
 function FilterSelect({
@@ -33,7 +36,7 @@ function FilterSelect({
         {label}
       </label>
       <Select value={value} onValueChange={(v) => v && onChange(v)}>
-        <SelectTrigger className="min-w-[130px] font-semibold">
+        <SelectTrigger className="w-full font-semibold">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -65,89 +68,124 @@ function DateRangeFilter({
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</label>
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <input
           type="date"
           value={inicio}
           onChange={(e) => onInicio(e.target.value)}
           aria-label={`${label} - data inicial`}
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-        <span className="text-xs font-medium text-muted-foreground">até</span>
+        <span className="text-center text-xs font-medium text-muted-foreground">até</span>
         <input
           type="date"
           value={fim}
           onChange={(e) => onFim(e.target.value)}
           aria-label={`${label} - data final`}
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
     </div>
   )
 }
 
-export function FiltersBar({ filters, opcoes, onChange }: FiltersBarProps) {
+export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onReset }: FiltersBarProps) {
+  // Quando recolhida, mostra apenas uma faixa fina com o botão de abrir.
+  if (collapsed) {
+    return (
+      <aside className="flex shrink-0 flex-col items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
+        <button
+          onClick={onToggle}
+          aria-label="Abrir filtros"
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          <PanelLeftOpen className="h-5 w-5" />
+        </button>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/50 text-muted-foreground">
+          <Filter className="h-4 w-4" />
+        </div>
+      </aside>
+    )
+  }
+
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <div className="flex flex-col gap-5">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+    <aside className="flex w-full shrink-0 flex-col gap-5 rounded-2xl border border-border bg-card p-5 shadow-sm lg:w-72">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Filter className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold uppercase tracking-tight text-foreground">Contexto da Análise</h2>
-            <p className="text-sm text-muted-foreground">Selecione os filtros para visualizar os resultados</p>
+            <h2 className="text-sm font-bold uppercase tracking-tight text-foreground">Filtros</h2>
+            <p className="text-xs text-muted-foreground">Contexto da análise</p>
           </div>
         </div>
-
-        <div className="flex flex-wrap items-end gap-4">
-          <FilterSelect
-            label="Regional"
-            value={filters.regional}
-            allLabel="TODAS"
-            options={opcoes.regionais}
-            onChange={(v) => onChange({ regional: v })}
-            highlight
-          />
-          <FilterSelect
-            label="HUB"
-            value={filters.hub}
-            allLabel="TODOS"
-            options={opcoes.hubs}
-            onChange={(v) => onChange({ hub: v })}
-            highlight
-          />
-          <FilterSelect
-            label="Mês"
-            value={filters.mes}
-            allLabel="TODOS"
-            options={opcoes.meses}
-            onChange={(v) => onChange({ mes: v })}
-          />
-          <FilterSelect
-            label="Semana"
-            value={filters.semana}
-            allLabel="TODAS"
-            options={opcoes.semanas}
-            onChange={(v) => onChange({ semana: v })}
-          />
-          <FilterSelect
-            label="Tipo Roteirização"
-            value={filters.tipo}
-            allLabel="TODOS"
-            options={["D-1", "D-2", "W-1"]}
-            onChange={(v) => onChange({ tipo: v })}
-            highlight
-          />
-          <DateRangeFilter
-            label="Data Roteirização"
-            inicio={filters.rotInicio}
-            fim={filters.rotFim}
-            onInicio={(v) => onChange({ rotInicio: v })}
-            onFim={(v) => onChange({ rotFim: v })}
-          />
-        </div>
+        <button
+          onClick={onToggle}
+          aria-label="Recolher filtros"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+        >
+          <PanelLeftClose className="h-5 w-5" />
+        </button>
       </div>
-    </div>
+
+      <div className="flex flex-col gap-4">
+        <FilterSelect
+          label="Regional"
+          value={filters.regional}
+          allLabel="TODAS"
+          options={opcoes.regionais}
+          onChange={(v) => onChange({ regional: v })}
+          highlight
+        />
+        <FilterSelect
+          label="HUB"
+          value={filters.hub}
+          allLabel="TODOS"
+          options={opcoes.hubs}
+          onChange={(v) => onChange({ hub: v })}
+          highlight
+        />
+        <FilterSelect
+          label="Mês"
+          value={filters.mes}
+          allLabel="TODOS"
+          options={opcoes.meses}
+          onChange={(v) => onChange({ mes: v })}
+        />
+        <FilterSelect
+          label="Semana"
+          value={filters.semana}
+          allLabel="TODAS"
+          options={opcoes.semanas}
+          onChange={(v) => onChange({ semana: v })}
+        />
+        <FilterSelect
+          label="Tipo Roteirização"
+          value={filters.tipo}
+          allLabel="TODOS"
+          options={["D-1", "D-2", "W-1"]}
+          onChange={(v) => onChange({ tipo: v })}
+          highlight
+        />
+        <DateRangeFilter
+          label="Data Roteirização"
+          inicio={filters.rotInicio}
+          fim={filters.rotFim}
+          onInicio={(v) => onChange({ rotInicio: v })}
+          onFim={(v) => onChange({ rotFim: v })}
+        />
+      </div>
+
+      {onReset && (
+        <button
+          onClick={onReset}
+          className="mt-1 inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Limpar filtros
+        </button>
+      )}
+    </aside>
   )
 }

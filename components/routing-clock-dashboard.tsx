@@ -31,6 +31,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 export function RoutingClockDashboard() {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [tab, setTab] = useState<TabId>("geral")
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false)
 
   const query = useMemo(() => {
     const sp = new URLSearchParams({
@@ -95,72 +96,83 @@ export function RoutingClockDashboard() {
         lastUpdated={lastUpdated}
       />
 
-      <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6">
-        {/* Seletor de abas */}
-        <div className="flex flex-wrap gap-2">
-          <TabButton
-            active={tab === "geral"}
-            onClick={() => setTab("geral")}
-            icon={<LayoutDashboard className="h-4 w-4" />}
-            label="Visão Geral"
-          />
-          <TabButton
-            active={tab === "hubs"}
-            onClick={() => setTab("hubs")}
-            icon={<Building2 className="h-4 w-4" />}
-            label="Análise de HUBs"
-          />
-        </div>
-
+      <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start">
+        {/* Barra lateral de filtros (recolhível) */}
         {data && (
-          <FiltersBar filters={filters} opcoes={data.opcoes} onChange={handleFilterChange} />
+          <FiltersBar
+            filters={filters}
+            opcoes={data.opcoes}
+            onChange={handleFilterChange}
+            collapsed={filtersCollapsed}
+            onToggle={() => setFiltersCollapsed((c) => !c)}
+            onReset={() => setFilters(DEFAULT_FILTERS)}
+          />
         )}
 
-        {isLoading || !data ? (
-          <div className="flex h-[60vh] items-center justify-center">
-            <div className="flex flex-col items-center gap-3 text-muted-foreground">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Carregando dados de roteirização...</p>
-            </div>
+        {/* Conteúdo principal */}
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          {/* Seletor de abas */}
+          <div className="flex flex-wrap gap-2">
+            <TabButton
+              active={tab === "geral"}
+              onClick={() => setTab("geral")}
+              icon={<LayoutDashboard className="h-4 w-4" />}
+              label="Visão Geral"
+            />
+            <TabButton
+              active={tab === "hubs"}
+              onClick={() => setTab("hubs")}
+              icon={<Building2 className="h-4 w-4" />}
+              label="Análise de HUBs"
+            />
           </div>
-        ) : tab === "geral" ? (
-          <>
-            <KpiCards kpis={data.kpis} />
 
-            {/* HUBs Impactados (logo abaixo dos big numbers) */}
-            <section className="flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger/10 text-danger">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold uppercase tracking-tight text-foreground">HUBs Impactados</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Facilities que publicaram roteiros após o prazo de entrega
-                  </p>
-                </div>
+          {isLoading || !data ? (
+            <div className="flex h-[60vh] items-center justify-center">
+              <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm font-medium">Carregando dados de roteirização...</p>
               </div>
-              <HubTable secao={data.hubAnalise.atraso} metric="atraso" />
-            </section>
+            </div>
+          ) : tab === "geral" ? (
+            <>
+              <KpiCards kpis={data.kpis} />
 
-            <WaterfallChart data={data.waterfall} />
+              {/* HUBs Impactados (logo abaixo dos big numbers) */}
+              <section className="flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger/10 text-danger">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold uppercase tracking-tight text-foreground">HUBs Impactados</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Facilities que publicaram roteiros após o prazo de entrega
+                    </p>
+                  </div>
+                </div>
+                <HubTable secao={data.hubAnalise.atraso} metric="atraso" />
+              </section>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <OffendersList ofensores={data.ofensores} />
+              <WaterfallChart data={data.waterfall} />
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <OffendersList ofensores={data.ofensores} />
+                </div>
+                <SeverityRange ranges={data.rangeSeveridade} />
               </div>
-              <SeverityRange ranges={data.rangeSeveridade} />
-            </div>
 
-            {/* Gráficos de performance ao final da página */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <MonthlyChart data={data.mensal} meta={data.kpis.meta} />
-              <WeeklyChart data={data.semanal} meta={data.kpis.meta} />
-            </div>
-          </>
-        ) : (
-          <HubAnalysis data={data.hubAnalise} selectedHub={filters.hub} />
-        )}
+              {/* Gráficos de performance ao final da página */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <MonthlyChart data={data.mensal} meta={data.kpis.meta} />
+                <WeeklyChart data={data.semanal} meta={data.kpis.meta} />
+              </div>
+            </>
+          ) : (
+            <HubAnalysis data={data.hubAnalise} selectedHub={filters.hub} />
+          )}
+        </div>
       </main>
     </div>
   )
