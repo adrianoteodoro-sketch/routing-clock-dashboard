@@ -25,6 +25,21 @@ export interface RawRoutingOrder {
   TMR_Routing_Exec: string // HH:MM - TMR executado (medida de aderência ao routing clock)
 }
 
+/**
+ * Linha crua da aba "Routing_Clock_D-2" (histórico do Routing By Meli 1.0,
+ * coletado via formulário). Todas as linhas são tratadas como tipo "D-2".
+ *  - hub: coluna B
+ *  - dataColeta: coluna C ("Data da Config")
+ *  - dataRoteirizacao: coluna A ("Carimbo de data/hora")
+ *  - entregaNoPrazo: coluna O ("Entrega no Prazo?") -> "Entrega no prazo" = Dentro da Meta
+ */
+export interface D2Row {
+  hub: string
+  dataColeta: string // YYYY-MM-DD
+  dataRoteirizacao: string // YYYY-MM-DD
+  entregaNoPrazo: boolean
+}
+
 export type TmrState = "ok" | "risco" | "estouro"
 
 /** Ordem de roteirização já classificada quanto à aderência. */
