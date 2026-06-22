@@ -1,6 +1,6 @@
 "use client"
 
-import { Filter, PanelRightClose, PanelRightOpen, RotateCcw } from "lucide-react"
+import { Filter, PanelLeftClose, PanelLeftOpen, RotateCcw } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { DashboardOpcoes, Filters } from "@/lib/types"
 
@@ -100,7 +100,7 @@ export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onR
           title="Abrir filtros"
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-secondary/60 hover:text-foreground"
         >
-          <PanelRightOpen className="h-4 w-4" />
+          <PanelLeftOpen className="h-4 w-4" />
         </button>
       </aside>
     )
@@ -119,7 +119,7 @@ export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onR
           title="Recolher filtros"
           className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
         >
-          <PanelRightClose className="h-4 w-4" />
+          <PanelLeftClose className="h-4 w-4" />
         </button>
       </div>
 
