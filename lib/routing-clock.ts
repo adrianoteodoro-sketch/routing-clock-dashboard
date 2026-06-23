@@ -158,9 +158,9 @@ function getTipoRoteirizacao(
  *  - Coleta terça (próxima semana) -> quinta da semana anterior 18:00
  *  - Coleta qua/qui/sex -> quinta da semana vigente 18:00
  *  - Coleta sábado (excepcional) -> quarta da mesma semana 18:00
- * D-1 (replanning): entrega no dia útil anterior à coleta às 18:00
+ * D-1 (replanning): entrega no dia útil anterior à coleta às 17:30
  *  - ter->seg, qua->ter, qui->qua, sex->qui, seg->sex anterior
- *  - sábado -> quarta anterior às 18:00
+ *  - sábado -> quarta anterior às 17:30
  */
 export function getDeadline(
   collectionDate: Date,
@@ -198,20 +198,20 @@ export function getDeadline(
     return null
   }
 
-  // replanning (D-1) - dia útil anterior 18:00
+  // replanning (D-1) - dia útil anterior 17:30
   switch (dow) {
     case 2: // terça -> segunda
-      return atHour(addDays(collectionDate, -1), 18)
+      return atHour(addDays(collectionDate, -1), 17, 30)
     case 3: // quarta -> terça
-      return atHour(addDays(collectionDate, -1), 18)
+      return atHour(addDays(collectionDate, -1), 17, 30)
     case 4: // quinta -> quarta
-      return atHour(addDays(collectionDate, -1), 18)
+      return atHour(addDays(collectionDate, -1), 17, 30)
     case 5: // sexta -> quinta
-      return atHour(addDays(collectionDate, -1), 18)
+      return atHour(addDays(collectionDate, -1), 17, 30)
     case 1: // segunda -> sexta anterior
-      return atHour(addDays(collectionDate, -3), 18)
-    case 6: // sábado -> quarta anterior 18:00
-      return atHour(addDays(collectionDate, -3), 18)
+      return atHour(addDays(collectionDate, -3), 17, 30)
+    case 6: // sábado -> quarta anterior 17:30
+      return atHour(addDays(collectionDate, -3), 17, 30)
     default:
       return null
   }
