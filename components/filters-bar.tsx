@@ -29,20 +29,22 @@ function FilterSelect({
   highlight?: boolean
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       <label
-        className={`text-xs font-bold uppercase tracking-wide ${highlight ? "text-primary" : "text-muted-foreground"}`}
+        className={`text-[11px] font-semibold uppercase tracking-wide ${highlight ? "text-primary" : "text-muted-foreground"}`}
       >
         {label}
       </label>
       <Select value={value} onValueChange={(v) => v && onChange(v)}>
-        <SelectTrigger className="w-full font-semibold">
+        <SelectTrigger className="h-8 w-full px-2.5 py-1 text-xs font-medium [&>svg]:h-3.5 [&>svg]:w-3.5">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={allLabel}>{allLabel}</SelectItem>
+          <SelectItem value={allLabel} className="text-xs">
+            {allLabel}
+          </SelectItem>
           {options.map((o) => (
-            <SelectItem key={o} value={o}>
+            <SelectItem key={o} value={o} className="text-xs">
               {o}
             </SelectItem>
           ))}
@@ -66,23 +68,23 @@ function DateRangeFilter({
   onFim: (v: string) => void
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</label>
-      <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</label>
+      <div className="flex flex-col gap-1">
         <input
           type="date"
           value={inicio}
           onChange={(e) => onInicio(e.target.value)}
           aria-label={`${label} - data inicial`}
-          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-        <span className="text-center text-xs font-medium text-muted-foreground">até</span>
+        <span className="text-center text-[11px] font-medium text-muted-foreground">até</span>
         <input
           type="date"
           value={fim}
           onChange={(e) => onFim(e.target.value)}
           aria-label={`${label} - data final`}
-          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
     </div>
@@ -123,7 +125,7 @@ export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onR
         </button>
       </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         <FilterSelect
           label="Regional"
           value={filters.regional}
