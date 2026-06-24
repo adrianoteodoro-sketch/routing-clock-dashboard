@@ -360,14 +360,29 @@ export function processD2Rows(rows: D2Row[]): RoutingOrder[] {
 // Filtros e agregações -> DashboardData
 // ----------------------------------------------------------------------------
 
+/**
+ * Casa um valor com um filtro que pode conter MÚLTIPLOS valores. O filtro pode ser:
+ *  - "TODOS"/"TODAS" ou "" -> aceita tudo
+ *  - "D-1,D-2" (lista separada por vírgula) -> aceita se o item estiver na lista
+ */
+function matchesMulti(filterValue: string, allLabel: string, itemValue: string): boolean {
+  if (!filterValue || filterValue === allLabel) return true
+  const selected = filterValue
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (selected.length === 0) return true
+  return selected.includes(itemValue)
+}
+
 function applyFilters(orders: RoutingOrder[], f: Filters): RoutingOrder[] {
   return orders.filter((o) => {
-  if (f.regional !== "TODAS" && o.regional !== f.regional) return false
-  if (f.hub && f.hub !== "TODOS" && o.facilityId !== f.hub) return false
-  if (f.mes !== "TODOS" && o.month !== f.mes) return false
-    if (f.semana !== "TODAS" && o.week !== f.semana) return false
-    if (f.tipo && f.tipo !== "TODOS" && o.tipoRoteirizacao !== f.tipo) return false
-    // Filtro "Data Roteirização": casa pela Data da Coleta (RTG_ORD_PLAN_LOCAL_DATE),
+    if (!matchesMulti(f.regional, "TODAS", o.regional)) return false
+    if (!matchesMulti(f.hub, "TODOS", o.facilityId)) return false
+    if (!matchesMulti(f.mes, "TODOS", o.month)) return false
+    if (!matchesMulti(f.semana, "TODAS", o.week)) return false
+    if (!matchesMulti(f.tipo, "TODOS", o.tipoRoteirizacao)) return false
+    // Filtro "Data da Coleta": casa pela Data da Coleta (RTG_ORD_PLAN_LOCAL_DATE),
     // garantindo acuracidade com o registro das anomalias (que também usa a coleta).
     if (f.rotInicio && o.collectionDate < f.rotInicio) return false
     if (f.rotFim && o.collectionDate > f.rotFim) return false
@@ -432,9 +447,9 @@ function buildPerfPorTipo(orders: RoutingOrder[]): PerfPorTipo[] {
  */
 function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResumo {
   const filtered = anomalias.filter((a) => {
-    if (f.regional !== "TODAS" && a.regional !== f.regional) return false
-    if (f.hub && f.hub !== "TODOS" && a.hub !== f.hub) return false
-    if (f.tipo && f.tipo !== "TODOS" && a.tipoRoteirizacao !== f.tipo) return false
+    if (!matchesMulti(f.regional, "TODAS", a.regional)) return false
+    if (!matchesMulti(f.hub, "TODOS", a.hub)) return false
+    if (!matchesMulti(f.tipo, "TODOS", a.tipoRoteirizacao)) return false
     if (f.rotInicio && (!a.dataColeta || a.dataColeta < f.rotInicio)) return false
     if (f.rotFim && (!a.dataColeta || a.dataColeta > f.rotFim)) return false
     return true
