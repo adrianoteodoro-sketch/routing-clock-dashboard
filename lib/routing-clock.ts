@@ -479,7 +479,7 @@ function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResum
   return { total: filtered.length, comAtraso, semAtraso, categorias }
 }
 
-function buildWaterfall(orders: RoutingOrder[]): WaterfallPonto[] {
+function buildWaterfall(orders: RoutingOrder[], anomaliasComAtraso = 0): WaterfallPonto[] {
   const total = orders.length
   const performance = perf(orders)
   if (total === 0) {
@@ -496,14 +496,39 @@ function buildWaterfall(orders: RoutingOrder[]): WaterfallPonto[] {
     byReason.set(b.reason, (byReason.get(b.reason) ?? 0) + 1)
   }
 
+  const gap = 100 - performance // total de pontos perdidos (não aderência)
+
+  // Impacto das anomalias que geraram atraso, em pontos percentuais, limitado ao
+  // gap de não aderência (não faz sentido a barra ultrapassar a perda real).
+  const anomaliaPpRaw = (anomaliasComAtraso / total) * 100
+  const anomaliaPp = Math.min(anomaliaPpRaw, gap)
+
+  // As barras de motivo passam a dividir o restante do gap (gap - anomaliaPp),
+  // reduzidas proporcionalmente para que o Total continue exatamente 100%.
+  const restante = gap - anomaliaPp
+  const scale = gap > 0 ? restante / gap : 0
+
   const points: WaterfallPonto[] = []
   const performance2 = Number(performance.toFixed(2))
   points.push({ label: "Performance RC", valor: performance2, acumulado: performance2, tipo: "inicio" })
 
   let acumulado = performance
+
+  // Barra dedicada ao atraso gerado por anomalias registradas.
+  if (anomaliaPp > 0) {
+    acumulado += anomaliaPp
+    points.push({
+      label: "Atraso por anomalia",
+      valor: Number(anomaliaPp.toFixed(2)),
+      acumulado: Number(acumulado.toFixed(2)),
+      tipo: "anomalia",
+    })
+  }
+
   const sortedReasons = [...byReason.entries()].sort((a, b) => b[1] - a[1])
   for (const [reason, count] of sortedReasons) {
-    const pp = (count / total) * 100
+    const pp = ((count / total) * 100) * scale
+    if (pp <= 0) continue
     acumulado += pp
     points.push({
       label: reason,
@@ -709,6 +734,9 @@ export function buildDashboard(
   const performanceAtual = perf(filtered)
   const volumeTotal = filtered.length
 
+  // Resumo de anomalias do período (reaproveitado no waterfall e no painel lateral).
+  const anomaliasResumo = buildAnomaliasResumo(anomalias, filters)
+
   // Tendência semana a semana: última semana vs penúltima (períodos comparáveis).
   const ultima = semanal[semanal.length - 1]
   const penultima = semanal[semanal.length - 2]
@@ -753,8 +781,8 @@ export function buildDashboard(
     mensal,
     semanal,
     performancePorTipo: buildPerfPorTipo(filtered),
-    waterfall: buildWaterfall(filtered),
-    anomalias: buildAnomaliasResumo(anomalias, filters),
+    waterfall: buildWaterfall(filtered, anomaliasResumo.comAtraso),
+    anomalias: anomaliasResumo,
     ofensores: buildOfensores(filtered),
     rangeSeveridade: buildRangeSeveridade(filtered),
     hubAnalise: buildHubAnalise(filtered),
