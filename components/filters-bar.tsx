@@ -1,7 +1,7 @@
 "use client"
 
-import { Filter, PanelLeftClose, PanelLeftOpen, RotateCcw } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useEffect, useRef, useState } from "react"
+import { Check, ChevronDown, Filter, PanelLeftClose, PanelLeftOpen, RotateCcw } from "lucide-react"
 import type { DashboardOpcoes, Filters } from "@/lib/types"
 
 interface FiltersBarProps {
@@ -13,7 +13,20 @@ interface FiltersBarProps {
   onReset?: () => void
 }
 
-function FilterSelect({
+/** Converte o valor do filtro (allLabel, "" ou "A,B") em lista de selecionados. */
+function parseSelected(value: string, allLabel: string): string[] {
+  if (!value || value === allLabel) return []
+  return value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+/**
+ * Filtro de múltipla escolha: dropdown com checkboxes. O valor é armazenado como
+ * allLabel (tudo) ou uma lista separada por vírgula. Fecha ao clicar fora.
+ */
+function MultiSelectFilter({
   label,
   value,
   allLabel,
@@ -28,28 +41,98 @@ function FilterSelect({
   onChange: (v: string) => void
   highlight?: boolean
 }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const selected = parseSelected(value, allLabel)
+
+  useEffect(() => {
+    if (!open) return
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", onClickOutside)
+    return () => document.removeEventListener("mousedown", onClickOutside)
+  }, [open])
+
+  function emit(next: string[]) {
+    // Sem seleção ou todas as opções marcadas => "tudo" (allLabel).
+    if (next.length === 0 || next.length === options.length) {
+      onChange(allLabel)
+      return
+    }
+    onChange(next.join(","))
+  }
+
+  function toggle(option: string) {
+    if (selected.includes(option)) {
+      emit(selected.filter((s) => s !== option))
+    } else {
+      emit([...selected, option])
+    }
+  }
+
+  const triggerLabel =
+    selected.length === 0 ? allLabel : selected.length === 1 ? selected[0] : `${selected.length} selecionados`
+
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1" ref={ref}>
       <label
         className={`text-[11px] font-semibold uppercase tracking-wide ${highlight ? "text-primary" : "text-muted-foreground"}`}
       >
         {label}
       </label>
-      <Select value={value} onValueChange={(v) => v && onChange(v)}>
-        <SelectTrigger className="h-8 w-full px-2.5 py-1 text-xs font-medium [&>svg]:h-3.5 [&>svg]:w-3.5">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={allLabel} className="text-xs">
-            {allLabel}
-          </SelectItem>
-          {options.map((o) => (
-            <SelectItem key={o} value={o} className="text-xs">
-              {o}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          className="flex h-8 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium text-foreground outline-none transition-colors hover:bg-secondary/40 focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="truncate">{triggerLabel}</span>
+          <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+
+        {open && (
+          <div
+            role="listbox"
+            className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-card p-1 shadow-lg"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                onChange(allLabel)
+              }}
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-medium text-foreground hover:bg-secondary/60"
+            >
+              <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+                {selected.length === 0 && <Check className="h-3.5 w-3.5 text-primary" />}
+              </span>
+              {allLabel}
+            </button>
+            {options.map((o) => {
+              const checked = selected.includes(o)
+              return (
+                <button
+                  key={o}
+                  type="button"
+                  onClick={() => toggle(o)}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-medium text-foreground hover:bg-secondary/60"
+                >
+                  <span
+                    className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${
+                      checked ? "border-primary bg-primary text-primary-foreground" : "border-input"
+                    }`}
+                  >
+                    {checked && <Check className="h-3 w-3" />}
+                  </span>
+                  {o}
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -126,7 +209,7 @@ export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onR
       </div>
 
       <div className="flex flex-col gap-3">
-        <FilterSelect
+        <MultiSelectFilter
           label="Regional"
           value={filters.regional}
           allLabel="TODAS"
@@ -134,7 +217,7 @@ export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onR
           onChange={(v) => onChange({ regional: v })}
           highlight
         />
-        <FilterSelect
+        <MultiSelectFilter
           label="HUB"
           value={filters.hub}
           allLabel="TODOS"
@@ -142,21 +225,21 @@ export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onR
           onChange={(v) => onChange({ hub: v })}
           highlight
         />
-        <FilterSelect
+        <MultiSelectFilter
           label="Mês"
           value={filters.mes}
           allLabel="TODOS"
           options={opcoes.meses}
           onChange={(v) => onChange({ mes: v })}
         />
-        <FilterSelect
+        <MultiSelectFilter
           label="Semana"
           value={filters.semana}
           allLabel="TODAS"
           options={opcoes.semanas}
           onChange={(v) => onChange({ semana: v })}
         />
-        <FilterSelect
+        <MultiSelectFilter
           label="Tipo Roteirização"
           value={filters.tipo}
           allLabel="TODOS"
@@ -165,7 +248,7 @@ export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onR
           highlight
         />
         <DateRangeFilter
-          label="Data Roteirização"
+          label="Data da Coleta"
           inicio={filters.rotInicio}
           fim={filters.rotFim}
           onInicio={(v) => onChange({ rotInicio: v })}

@@ -360,17 +360,33 @@ export function processD2Rows(rows: D2Row[]): RoutingOrder[] {
 // Filtros e agregações -> DashboardData
 // ----------------------------------------------------------------------------
 
+/**
+ * Casa um valor com um filtro que pode conter MÚLTIPLOS valores. O filtro pode ser:
+ *  - "TODOS"/"TODAS" ou "" -> aceita tudo
+ *  - "D-1,D-2" (lista separada por vírgula) -> aceita se o item estiver na lista
+ */
+function matchesMulti(filterValue: string, allLabel: string, itemValue: string): boolean {
+  if (!filterValue || filterValue === allLabel) return true
+  const selected = filterValue
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (selected.length === 0) return true
+  return selected.includes(itemValue)
+}
+
 function applyFilters(orders: RoutingOrder[], f: Filters): RoutingOrder[] {
   return orders.filter((o) => {
-  if (f.regional !== "TODAS" && o.regional !== f.regional) return false
-  if (f.hub && f.hub !== "TODOS" && o.facilityId !== f.hub) return false
-  if (f.mes !== "TODOS" && o.month !== f.mes) return false
-    if (f.semana !== "TODAS" && o.week !== f.semana) return false
-    if (f.tipo && f.tipo !== "TODOS" && o.tipoRoteirizacao !== f.tipo) return false
-    // Intervalo por data de roteirização (created_date)
-    if (f.rotInicio && o.routingDate < f.rotInicio) return false
-    if (f.rotFim && o.routingDate > f.rotFim) return false
-    // Intervalo por data de coleta (RTG_ORD_PLAN_LOCAL_DATE)
+    if (!matchesMulti(f.regional, "TODAS", o.regional)) return false
+    if (!matchesMulti(f.hub, "TODOS", o.facilityId)) return false
+    if (!matchesMulti(f.mes, "TODOS", o.month)) return false
+    if (!matchesMulti(f.semana, "TODAS", o.week)) return false
+    if (!matchesMulti(f.tipo, "TODOS", o.tipoRoteirizacao)) return false
+    // Filtro "Data da Coleta": casa pela Data da Coleta (RTG_ORD_PLAN_LOCAL_DATE),
+    // garantindo acuracidade com o registro das anomalias (que também usa a coleta).
+    if (f.rotInicio && o.collectionDate < f.rotInicio) return false
+    if (f.rotFim && o.collectionDate > f.rotFim) return false
+    // Intervalo dedicado por data de coleta (RTG_ORD_PLAN_LOCAL_DATE), se informado.
     if (f.coletaInicio && o.collectionDate < f.coletaInicio) return false
     if (f.coletaFim && o.collectionDate > f.coletaFim) return false
     return true
@@ -425,16 +441,17 @@ function buildPerfPorTipo(orders: RoutingOrder[]): PerfPorTipo[] {
 /**
  * Correlaciona as anomalias registradas com o período/escopo filtrado e as agrupa
  * por categoria de problema, separando as que geraram atraso das que não geraram.
- * Filtra por regional, hub, tipo e intervalo da data "Registrado em" (col. A).
+ * Filtra por regional, hub, tipo e intervalo da DATA DA COLETA (col. B), o mesmo
+ * eixo usado pelos roteiros (RTG_ORD_PLAN_LOCAL_DATE) — garante acuracidade.
  * Obs.: os filtros de mês/semana não se aplicam (anomalia não tem rótulo semanal).
  */
 function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResumo {
   const filtered = anomalias.filter((a) => {
-    if (f.regional !== "TODAS" && a.regional !== f.regional) return false
-    if (f.hub && f.hub !== "TODOS" && a.hub !== f.hub) return false
-    if (f.tipo && f.tipo !== "TODOS" && a.tipoRoteirizacao !== f.tipo) return false
-    if (f.rotInicio && a.registradoEm < f.rotInicio) return false
-    if (f.rotFim && a.registradoEm > f.rotFim) return false
+    if (!matchesMulti(f.regional, "TODAS", a.regional)) return false
+    if (!matchesMulti(f.hub, "TODOS", a.hub)) return false
+    if (!matchesMulti(f.tipo, "TODOS", a.tipoRoteirizacao)) return false
+    if (f.rotInicio && (!a.dataColeta || a.dataColeta < f.rotInicio)) return false
+    if (f.rotFim && (!a.dataColeta || a.dataColeta > f.rotFim)) return false
     return true
   })
 
