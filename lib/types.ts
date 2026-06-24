@@ -73,6 +73,14 @@ export interface SeriePonto {
   meta: number
 }
 
+/** Performance e volume agregados por tipo de roteirização (W-1 / D-1 / D-2). */
+export interface PerfPorTipo {
+  tipo: TipoRoteirizacao
+  performance: number
+  volume: number
+  meta: number
+}
+
 export interface WaterfallPonto {
   label: string
   valor: number
@@ -201,6 +209,7 @@ export interface DashboardData {
   kpis: Kpis
   mensal: SeriePonto[]
   semanal: SeriePonto[]
+  performancePorTipo: PerfPorTipo[]
   waterfall: WaterfallPonto[]
   ofensores: Ofensor[]
   rangeSeveridade: RangeSeveridade[]

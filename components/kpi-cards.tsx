@@ -1,7 +1,7 @@
 "use client"
 
 import { TrendingUp, TrendingDown, Package, Target } from "lucide-react"
-import type { Kpis } from "@/lib/types"
+import type { Kpis, PerfPorTipo } from "@/lib/types"
 
 function formatNumber(n: number): string {
   return n.toLocaleString("pt-BR")
@@ -19,7 +19,7 @@ function variation(current: number, previous: number): { text: string; positive:
   return { text: `${positive ? "+" : ""}${formatDecimal(pct)}% vs sem. anterior`, positive }
 }
 
-export function KpiCards({ kpis }: { kpis: Kpis }) {
+export function KpiCards({ kpis, porTipo = [] }: { kpis: Kpis; porTipo?: PerfPorTipo[] }) {
   const perfVar = variation(kpis.perfUltimaSemana, kpis.perfSemanaAnterior)
   const volVar = variation(kpis.volumeUltimaSemana, kpis.volumeSemanaAnterior)
   const delta = kpis.performanceAtual - kpis.meta
@@ -56,6 +56,23 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
           <span className="font-semibold uppercase tracking-wide text-muted-foreground">Meta</span>
           <span className="font-bold text-foreground">{formatDecimal(kpis.meta)}%</span>
         </div>
+
+        {porTipo.length > 0 && (
+          <div className="mt-4 grid gap-2 border-t border-border pt-4" style={{ gridTemplateColumns: `repeat(${porTipo.length}, minmax(0, 1fr))` }}>
+            {porTipo.map((t) => {
+              const ok = t.performance >= t.meta
+              return (
+                <div key={t.tipo} className="flex flex-col items-center rounded-lg bg-secondary/40 px-2 py-2 text-center">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t.tipo}</span>
+                  <span className={`text-lg font-bold tracking-tight ${ok ? "text-success" : "text-danger"}`}>
+                    {formatDecimal(t.performance)}%
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">{formatNumber(t.volume)} rot.</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Delta vs Meta */}

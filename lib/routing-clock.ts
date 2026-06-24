@@ -7,6 +7,7 @@ import type {
   HubDiaResumo,
   HubResumo,
   Ofensor,
+  PerfPorTipo,
   RangeSeveridade,
   RawRoutingOrder,
   RegionalResumo,
@@ -403,6 +404,22 @@ function buildSerie(orders: RoutingOrder[], key: "month" | "week"): SeriePonto[]
     }))
 }
 
+/** Performance e volume por tipo de roteirização (W-1 / D-1 / D-2), na ordem fixa. */
+function buildPerfPorTipo(orders: RoutingOrder[]): PerfPorTipo[] {
+  const ordem: TipoRoteirizacao[] = ["W-1", "D-1", "D-2"]
+  return ordem
+    .map((tipo) => {
+      const items = orders.filter((o) => o.tipoRoteirizacao === tipo)
+      return {
+        tipo,
+        performance: Number(perf(items).toFixed(2)),
+        volume: items.length,
+        meta: META_PERFORMANCE,
+      }
+    })
+    .filter((t) => t.volume > 0)
+}
+
 function buildWaterfall(orders: RoutingOrder[]): WaterfallPonto[] {
   const total = orders.length
   const performance = perf(orders)
@@ -675,6 +692,7 @@ export function buildDashboard(
     kpis,
     mensal,
     semanal,
+    performancePorTipo: buildPerfPorTipo(filtered),
     waterfall: buildWaterfall(filtered),
     ofensores: buildOfensores(filtered),
     rangeSeveridade: buildRangeSeveridade(filtered),
