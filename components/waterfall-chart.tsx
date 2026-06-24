@@ -44,7 +44,10 @@ function ValueLabel(props: { x?: number | string; y?: number | string; width?: n
 }
 
 export function WaterfallChart({ data }: { data: WaterfallPonto[] }) {
-  const bars = buildBars(data)
+  // Inverte a ordem para exibir Total à esquerda e Performance RC à direita.
+  // O cálculo de base/span de cada barra é independente da posição, então a
+  // inversão é apenas visual e preserva a cascata.
+  const bars = buildBars(data).reverse()
   const minBase = Math.min(
     ...bars.filter((b) => b.tipo === "perda" || b.tipo === "anomalia").map((b) => b.base),
     100,
