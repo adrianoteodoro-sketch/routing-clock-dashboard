@@ -83,8 +83,7 @@ export async function GET(request: Request) {
 
     // Query mínima contra a tabela real para validar acesso de fato.
     const [rows] = await bq.query({
-      query:
-        'SELECT COUNT(*) AS total FROM `meli-bi-data.WHOWNER.BT_SHP_LG_RTG_ORDER` WHERE RTG_ORD_PLAN_LOCAL_DATE > "2026-01-01" LIMIT 1',
+      query: "SELECT 1 AS ok FROM `meli-bi-data.WHOWNER.BT_SHP_LG_RTG_ORDER` LIMIT 1",
     })
 
     return NextResponse.json({
