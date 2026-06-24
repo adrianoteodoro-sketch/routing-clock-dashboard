@@ -85,7 +85,7 @@ export interface WaterfallPonto {
   label: string
   valor: number
   acumulado: number
-  tipo: "inicio" | "perda" | "total"
+  tipo: "inicio" | "perda" | "anomalia" | "total"
 }
 
 export interface Ofensor {
