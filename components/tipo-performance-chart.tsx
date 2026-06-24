@@ -18,8 +18,8 @@ const MUTED = "oklch(0.55 0.02 257)"
 
 const TIPO_LABEL: Record<string, string> = {
   "W-1": "W-1 (Tático)",
-  "D-1": "D-1 (Replanejamento)",
-  "D-2": "D-2 (Longa distância)",
+  "D-1": "D-1 (Replan)",
+  "D-2": "D-2 (Exceção)",
 }
 
 function ValueLabel(props: any) {
