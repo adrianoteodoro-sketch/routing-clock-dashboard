@@ -240,6 +240,7 @@ export async function triggerSheetRefresh(): Promise<{
   triggered: boolean
   signature: string
   hasSources: boolean
+  error?: string
 }> {
   const credentials = getCredentials()
   const rawId = process.env.GOOGLE_SHEET_ID
@@ -268,6 +269,30 @@ export async function triggerSheetRefresh(): Promise<{
   if (!res.ok) {
     const body = await res.text()
     throw new Error(`Refresh data source ${res.status}: ${body.slice(0, 250)}`)
+  }
+
+  // O batchUpdate retorna 200 mesmo quando a fonte falha. É preciso inspecionar o
+  // estado de cada data source no reply para saber se o refresh foi REALMENTE aceito.
+  const reply = (await res.json()) as {
+    replies?: { refreshDataSource?: { statuses?: { dataExecutionStatus?: { state?: string; errorMessage?: string } }[] } }[]
+  }
+  const statuses = (reply.replies ?? [])
+    .flatMap((r) => r.refreshDataSource?.statuses ?? [])
+    .map((s) => s.dataExecutionStatus)
+    .filter((s): s is { state?: string; errorMessage?: string } => !!s)
+
+  const failed = statuses.find((s) => s.state === "FAILED")
+  if (failed && !statuses.some((s) => s.state === "RUNNING" || s.state === "PENDING")) {
+    const raw = failed.errorMessage ?? "Falha desconhecida ao atualizar a fonte de dados."
+    // O erro de VPC Service Controls é uma restrição da organização (não tem fix no app).
+    const msg = raw.includes("VPC Service Controls")
+      ? "O Google bloqueou a atualização da consulta ao BigQuery por uma política de VPC Service Controls da organização. " +
+        "A conta de serviço usada pelo painel precisa ser autorizada no perímetro de VPC Service Controls (acesso de ingresso ao BigQuery) " +
+        "pelo administrador do Google Cloud. Detalhe técnico: " +
+        raw
+      : raw
+    console.log("[v0] Refresh da Connected Sheet FALHOU:", raw)
+    return { triggered: false, signature, hasSources: true, error: msg }
   }
 
   console.log("[v0] Refresh das Connected Sheets disparado. Assinatura base:", signature || "(vazia)")
