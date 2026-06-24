@@ -165,7 +165,7 @@ export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onR
           highlight
         />
         <DateRangeFilter
-          label="Data Roteirização"
+          label="Data da Coleta"
           inicio={filters.rotInicio}
           fim={filters.rotFim}
           onInicio={(v) => onChange({ rotInicio: v })}

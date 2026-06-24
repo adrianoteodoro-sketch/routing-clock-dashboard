@@ -167,10 +167,10 @@ export function RoutingClockDashboard() {
             </div>
           ) : tab === "geral" ? (
             <>
-              {/* Data da roteirização (mesma do filtro) - destaque para report gerencial */}
+              {/* Data da coleta (mesma do filtro) - destaque para report gerencial */}
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Data da Roteirização
+                  Data da Coleta
                 </span>
                 <span className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
                   {routingDateLabel(filters.rotInicio, filters.rotFim)}
