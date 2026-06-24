@@ -136,6 +136,8 @@ export interface DashboardOpcoes {
   hubs: string[]
   meses: string[]
   semanas: string[]
+  /** Data de roteirização mais recente disponível na base (YYYY-MM-DD), usada como filtro inicial. */
+  maxRoutingDate: string
 }
 
 // ----------------------------------------------------------------------------

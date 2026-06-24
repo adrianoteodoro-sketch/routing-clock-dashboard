@@ -15,17 +15,6 @@ import type { DashboardData, Filters } from "@/lib/types"
 
 type TabId = "geral" | "hubs"
 
-// Data de hoje no formato YYYY-MM-DD (fuso local), usada para iniciar os filtros de roteirização.
-function todayISO(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-  return `${y}-${m}-${day}`
-}
-
-const TODAY = todayISO()
-
 // Formata "YYYY-MM-DD" -> "22 de junho de 2026" (pt-BR).
 function formatDateBR(iso: string): string {
   if (!iso) return ""
@@ -43,14 +32,17 @@ function routingDateLabel(rotInicio: string, rotFim: string): string {
   return formatDateBR(rotInicio || rotFim)
 }
 
+// O filtro de data inicia vazio; assim que os dados chegam, o dashboard fixa
+// automaticamente a data de roteirização mais recente disponível na base
+// (opcoes.maxRoutingDate), evitando abrir em "hoje" sem dados.
 const DEFAULT_FILTERS: Filters = {
   regional: "TODAS",
   hub: "TODOS",
   mes: "TODOS",
   semana: "TODAS",
   tipo: "TODOS",
-  rotInicio: TODAY,
-  rotFim: TODAY,
+  rotInicio: "",
+  rotFim: "",
   coletaInicio: "",
   coletaFim: "",
 }
@@ -84,6 +76,7 @@ export function RoutingClockDashboard() {
 
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [refreshingSource, setRefreshingSource] = useState(false)
+  const [dateInitialized, setDateInitialized] = useState(false)
 
   // Atualiza o horário sempre que novos dados chegam com sucesso.
   useEffect(() => {
@@ -91,6 +84,16 @@ export function RoutingClockDashboard() {
       setLastUpdated(new Date())
     }
   }, [data, isValidating])
+
+  // Na primeira carga, fixa o filtro na data de roteirização mais recente
+  // disponível na base. Assim o dashboard nunca abre vazio (ex.: "hoje" sem dados).
+  useEffect(() => {
+    if (!dateInitialized && data?.opcoes?.maxRoutingDate) {
+      const d = data.opcoes.maxRoutingDate
+      setFilters((prev) => ({ ...prev, rotInicio: d, rotFim: d }))
+      setDateInitialized(true)
+    }
+  }, [data, dateInitialized])
 
   const handleFilterChange = (next: Partial<Filters>) => {
     setFilters((prev) => {
@@ -134,7 +137,10 @@ export function RoutingClockDashboard() {
             onChange={handleFilterChange}
             collapsed={filtersCollapsed}
             onToggle={() => setFiltersCollapsed((c) => !c)}
-            onReset={() => setFilters(DEFAULT_FILTERS)}
+            onReset={() => {
+              const d = data?.opcoes?.maxRoutingDate ?? ""
+              setFilters({ ...DEFAULT_FILTERS, rotInicio: d, rotFim: d })
+            }}
           />
         )}
 

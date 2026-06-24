@@ -706,6 +706,7 @@ export function buildDashboard(
       ),
       meses: chronoLabels("month"),
       semanas: chronoLabels("week"),
+      maxRoutingDate: orders.reduce((max, o) => (o.routingDate > max ? o.routingDate : max), ""),
     },
     fonte,
   }
