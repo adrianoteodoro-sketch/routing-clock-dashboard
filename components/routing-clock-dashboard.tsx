@@ -8,23 +8,13 @@ import { KpiCards } from "@/components/kpi-cards"
 import { MonthlyChart, WeeklyChart } from "@/components/performance-charts"
 import { WaterfallChart } from "@/components/waterfall-chart"
 import { TipoPerformanceChart } from "@/components/tipo-performance-chart"
+import { AnomaliasPanel } from "@/components/anomalias-panel"
 import { OffendersList, SeverityRange } from "@/components/offenders-severity"
 import { HubAnalysis, HubTable } from "@/components/hub-analysis"
 import { Loader2, LayoutDashboard, Building2, AlertTriangle } from "lucide-react"
 import type { DashboardData, Filters } from "@/lib/types"
 
 type TabId = "geral" | "hubs"
-
-// Data de hoje no formato YYYY-MM-DD (fuso local), usada para iniciar os filtros de roteirização.
-function todayISO(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-  return `${y}-${m}-${day}`
-}
-
-const TODAY = todayISO()
 
 // Formata "YYYY-MM-DD" -> "22 de junho de 2026" (pt-BR).
 function formatDateBR(iso: string): string {
@@ -43,6 +33,18 @@ function routingDateLabel(rotInicio: string, rotFim: string): string {
   return formatDateBR(rotInicio || rotFim)
 }
 
+// Data de hoje no formato YYYY-MM-DD (fuso local), usada para iniciar os filtros de roteirização.
+function todayISO(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+const TODAY = todayISO()
+
+// O dashboard sempre abre na data de HOJE em ambos os filtros de roteirização.
 const DEFAULT_FILTERS: Filters = {
   regional: "TODAS",
   hub: "TODOS",
@@ -179,8 +181,10 @@ export function RoutingClockDashboard() {
 
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <WaterfallChart data={data.waterfall} />
-                <TipoPerformanceChart data={data.performancePorTipo} meta={data.kpis.meta} />
+                <AnomaliasPanel data={data.anomalias} />
               </div>
+
+              <TipoPerformanceChart data={data.performancePorTipo} meta={data.kpis.meta} />
 
               {/* HUBs Impactados */}
               <section className="flex flex-col gap-4">

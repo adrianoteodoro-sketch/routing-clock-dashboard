@@ -1,5 +1,5 @@
 import { GoogleAuth } from "google-auth-library"
-import type { D2Row, PlanificationType, RawRoutingOrder } from "./types"
+import type { Anomalia, D2Row, PlanificationType, RawRoutingOrder } from "./types"
 import { regionalForHub } from "./hubs"
 
 /**
@@ -296,6 +296,63 @@ export async function fetchRowsFromSheet(): Promise<RawRoutingOrder[]> {
 
   const json = (await res.json()) as { values?: string[][] }
   return parseValues(json.values ?? [])
+}
+
+/** Nome da aba de registro de anomalias da roteirização. */
+const ANOMALIAS_SHEET_TAB = "Anomalias"
+
+/**
+ * Lê a aba "Anomalias" (problemas registrados durante a roteirização). Mapeia por
+ * posição de coluna (cabeçalhos estáveis):
+ *   A(0) Registrado em | B(1) Data da Coleta | D(3) HUB | E(4) Tipo de roteirização
+ *   F(5) Informe o Problema Encontrado | G(6) Houve atraso na roteirização? (Sim/Não)
+ *   I(8) Descrição da Anomalia
+ * Retorna [] se a aba não existir / não configurado (não quebra o fluxo principal).
+ */
+export async function fetchAnomaliasFromSheet(): Promise<Anomalia[]> {
+  const credentials = getCredentials()
+  const rawId = process.env.GOOGLE_SHEET_ID
+  if (!credentials || !rawId) return []
+
+  const sheetId = extractSheetId(rawId)
+  const token = await getAccessToken(credentials)
+  const range = `'${ANOMALIAS_SHEET_TAB.replace(/'/g, "''")}'!A:I`
+
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}` +
+    `/values/${encodeURIComponent(range)}?majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE`
+
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) {
+    const body = await res.text()
+    console.log(`[v0] Aba ${ANOMALIAS_SHEET_TAB} indisponível (${res.status}): ${body.slice(0, 150)}`)
+    return []
+  }
+
+  const json = (await res.json()) as { values?: string[][] }
+  const values = json.values ?? []
+  if (values.length < 2) return []
+
+  const rows: Anomalia[] = []
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r]
+    if (!row || row.length === 0) continue
+    const hub = (row[3] ?? "").trim() // coluna D
+    const registradoEm = normalizeDate(row[0] ?? "") // coluna A (ignora a hora)
+    if (!hub && !registradoEm) continue
+    const houveAtrasoRaw = (row[6] ?? "").trim().toLowerCase() // coluna G
+    rows.push({
+      registradoEm,
+      dataColeta: normalizeDate(row[1] ?? ""), // coluna B
+      hub,
+      regional: regionalForHub(hub),
+      tipoRoteirizacao: (row[4] ?? "").trim(), // coluna E
+      problema: (row[5] ?? "").trim() || "Não informado", // coluna F
+      houveAtraso: houveAtrasoRaw.startsWith("sim"), // coluna G
+      descricao: (row[8] ?? "").trim(), // coluna I
+    })
+  }
+  return rows
 }
 
 /** Nome da aba com o histórico Routing By Meli 1.0 (roteirizações D-2 via formulário). */
