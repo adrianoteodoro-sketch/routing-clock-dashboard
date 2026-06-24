@@ -207,12 +207,44 @@ export interface HubAnalise {
   estouro: HubAnaliseSecao
 }
 
+/**
+ * Registro da aba "Anomalias" da planilha: problemas ocorridos durante a
+ * roteirização, com ou sem impacto no prazo (base para planos de ação).
+ */
+export interface Anomalia {
+  registradoEm: string // YYYY-MM-DD (coluna A "Registrado em", parte de data)
+  dataColeta: string // YYYY-MM-DD (coluna B)
+  hub: string // coluna D
+  regional: string // derivada do HUB
+  tipoRoteirizacao: string // coluna E (W-1 / D-1 / D-2)
+  problema: string // coluna F "Informe o Problema Encontrado"
+  houveAtraso: boolean // coluna G "Houve atraso na roteirização?" (Sim/Não)
+  descricao: string // coluna I
+}
+
+/** Anomalias agrupadas por categoria de problema, separando com/sem atraso. */
+export interface AnomaliaCategoria {
+  problema: string
+  comAtraso: number
+  semAtraso: number
+  total: number
+}
+
+/** Resumo das anomalias do período filtrado para exibição ao lado do waterfall. */
+export interface AnomaliasResumo {
+  total: number
+  comAtraso: number // afetaram a performance (geraram atraso)
+  semAtraso: number // ocorreram durante o dia, sem gerar atraso
+  categorias: AnomaliaCategoria[]
+}
+
 export interface DashboardData {
   kpis: Kpis
   mensal: SeriePonto[]
   semanal: SeriePonto[]
   performancePorTipo: PerfPorTipo[]
   waterfall: WaterfallPonto[]
+  anomalias: AnomaliasResumo
   ofensores: Ofensor[]
   rangeSeveridade: RangeSeveridade[]
   hubAnalise: HubAnalise

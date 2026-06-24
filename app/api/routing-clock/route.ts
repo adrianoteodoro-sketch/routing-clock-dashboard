@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { fetchRoutingOrders } from "@/lib/bigquery"
-import { fetchD2RowsFromSheet, refreshSheetDataSources } from "@/lib/google-sheets"
+import { fetchAnomaliasFromSheet, fetchD2RowsFromSheet, refreshSheetDataSources } from "@/lib/google-sheets"
 import { buildDashboard, processD2Rows, processRows } from "@/lib/routing-clock"
 import type { Filters } from "@/lib/types"
 
@@ -33,18 +33,23 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Busca a base principal (RBM 2.0) e o histórico RBM 1.0 (aba D-2) em paralelo.
-    const [{ rows, fonte }, d2rows] = await Promise.all([
+    // Busca a base principal (RBM 2.0), o histórico RBM 1.0 (aba D-2) e as
+    // anomalias registradas, tudo em paralelo.
+    const [{ rows, fonte }, d2rows, anomalias] = await Promise.all([
       fetchRoutingOrders(),
       fetchD2RowsFromSheet().catch((e) => {
         console.log("[v0] Falha ao ler aba Routing_Clock_D-2:", (e as Error).message)
+        return []
+      }),
+      fetchAnomaliasFromSheet().catch((e) => {
+        console.log("[v0] Falha ao ler aba Anomalias:", (e as Error).message)
         return []
       }),
     ])
 
     // Mescla os roteiros D-2 (histórico) com a base atual para somar no volume total.
     const orders = [...processRows(rows), ...processD2Rows(d2rows)]
-    const data = buildDashboard(orders, filters, fonte)
+    const data = buildDashboard(orders, filters, fonte, anomalias)
     return NextResponse.json(data)
   } catch (error) {
     console.log("[v0] Erro na API routing-clock:", (error as Error).message)

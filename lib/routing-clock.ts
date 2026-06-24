@@ -6,6 +6,8 @@ import type {
   HubAnaliseSecao,
   HubDiaResumo,
   HubResumo,
+  Anomalia,
+  AnomaliasResumo,
   Ofensor,
   PerfPorTipo,
   RangeSeveridade,
@@ -420,6 +422,46 @@ function buildPerfPorTipo(orders: RoutingOrder[]): PerfPorTipo[] {
     .filter((t) => t.volume > 0)
 }
 
+/**
+ * Correlaciona as anomalias registradas com o período/escopo filtrado e as agrupa
+ * por categoria de problema, separando as que geraram atraso das que não geraram.
+ * Filtra por regional, hub, tipo e intervalo da data "Registrado em" (col. A).
+ * Obs.: os filtros de mês/semana não se aplicam (anomalia não tem rótulo semanal).
+ */
+function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResumo {
+  const filtered = anomalias.filter((a) => {
+    if (f.regional !== "TODAS" && a.regional !== f.regional) return false
+    if (f.hub && f.hub !== "TODOS" && a.hub !== f.hub) return false
+    if (f.tipo && f.tipo !== "TODOS" && a.tipoRoteirizacao !== f.tipo) return false
+    if (f.rotInicio && a.registradoEm < f.rotInicio) return false
+    if (f.rotFim && a.registradoEm > f.rotFim) return false
+    return true
+  })
+
+  const catMap = new Map<string, { comAtraso: number; semAtraso: number }>()
+  let comAtraso = 0
+  let semAtraso = 0
+  for (const a of filtered) {
+    if (a.houveAtraso) comAtraso++
+    else semAtraso++
+    const c = catMap.get(a.problema) ?? { comAtraso: 0, semAtraso: 0 }
+    if (a.houveAtraso) c.comAtraso++
+    else c.semAtraso++
+    catMap.set(a.problema, c)
+  }
+
+  const categorias = [...catMap.entries()]
+    .map(([problema, v]) => ({
+      problema,
+      comAtraso: v.comAtraso,
+      semAtraso: v.semAtraso,
+      total: v.comAtraso + v.semAtraso,
+    }))
+    .sort((a, b) => b.total - a.total)
+
+  return { total: filtered.length, comAtraso, semAtraso, categorias }
+}
+
 function buildWaterfall(orders: RoutingOrder[]): WaterfallPonto[] {
   const total = orders.length
   const performance = perf(orders)
@@ -640,6 +682,7 @@ export function buildDashboard(
   orders: RoutingOrder[],
   filters: Filters,
   fonte: "bigquery" | "sheets" | "mock",
+  anomalias: Anomalia[] = [],
 ): DashboardData {
   const filtered = applyFilters(orders, filters)
 
@@ -694,6 +737,7 @@ export function buildDashboard(
     semanal,
     performancePorTipo: buildPerfPorTipo(filtered),
     waterfall: buildWaterfall(filtered),
+    anomalias: buildAnomaliasResumo(anomalias, filters),
     ofensores: buildOfensores(filtered),
     rangeSeveridade: buildRangeSeveridade(filtered),
     hubAnalise: buildHubAnalise(filtered),
