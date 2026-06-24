@@ -193,33 +193,57 @@ async function getReadableSheetTitle(sheetId: string, token: string): Promise<st
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** Lê o estado de execução de todas as Connected Sheets (DATA_SOURCE) da planilha. */
-async function getDataExecutionStates(sheetId: string, token: string): Promise<string[]> {
+interface DataExecState {
+  state: string
+  lastRefreshTime: string // RFC3339; vazio se nunca atualizado
+}
+
+/**
+ * Lê o estado de execução de todas as Connected Sheets (DATA_SOURCE) da planilha,
+ * incluindo o lastRefreshTime — usado para detectar quando uma NOVA execução
+ * realmente concluiu (e não confundir com o SUCCEEDED de um refresh anterior).
+ */
+async function getDataExecutionStates(sheetId: string, token: string): Promise<DataExecState[]> {
   const url =
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}` +
     `?fields=sheets.properties.dataSourceSheetProperties.dataExecutionStatus`
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
   if (!res.ok) return []
   const json = (await res.json()) as {
-    sheets?: { properties?: { dataSourceSheetProperties?: { dataExecutionStatus?: { state?: string } } } }[]
+    sheets?: {
+      properties?: {
+        dataSourceSheetProperties?: { dataExecutionStatus?: { state?: string; lastRefreshTime?: string } }
+      }
+    }[]
   }
   return (json.sheets ?? [])
-    .map((s) => s.properties?.dataSourceSheetProperties?.dataExecutionStatus?.state)
-    .filter((s): s is string => !!s)
+    .map((s) => s.properties?.dataSourceSheetProperties?.dataExecutionStatus)
+    .filter((st): st is { state?: string; lastRefreshTime?: string } => !!st && !!st.state)
+    .map((st) => ({ state: st.state as string, lastRefreshTime: st.lastRefreshTime ?? "" }))
+}
+
+/** Junta os lastRefreshTime das fontes numa "assinatura" para detectar avanço. */
+function refreshSignature(states: DataExecState[]): string {
+  return states.map((s) => s.lastRefreshTime).join("|")
 }
 
 /**
- * Dispara o refresh de TODAS as Connected Sheets (data sources) da planilha,
- * fazendo a aba "Query" re-consultar o BigQuery. Aguarda a conclusão para que a
- * fórmula da aba lida (Extração_Query) recalcule antes de ler os valores.
+ * DISPARA o refresh de TODAS as Connected Sheets (data sources) e retorna NA HORA,
+ * sem aguardar a conclusão. Devolve a "assinatura" (lastRefreshTime) ANTERIOR ao
+ * refresh, que o cliente usa depois para detectar quando a nova execução terminou.
  *
+ * O modelo é assíncrono de propósito: o refresh do BigQuery pode levar bem mais que
+ * o limite de uma função serverless, então não bloqueamos a requisição esperando.
  * Requer que a service account tenha acesso de EDITOR na planilha.
- * Retorna true se houve (ou tentou) refresh; false se não há Connected Sheets.
  */
-export async function refreshSheetDataSources(): Promise<boolean> {
+export async function triggerSheetRefresh(): Promise<{
+  triggered: boolean
+  signature: string
+  hasSources: boolean
+}> {
   const credentials = getCredentials()
   const rawId = process.env.GOOGLE_SHEET_ID
-  if (!credentials || !rawId) return false
+  if (!credentials || !rawId) return { triggered: false, signature: "", hasSources: false }
 
   const sheetId = extractSheetId(rawId)
   const token = await getAccessToken(credentials)
@@ -228,8 +252,10 @@ export async function refreshSheetDataSources(): Promise<boolean> {
   const before = await getDataExecutionStates(sheetId, token)
   if (before.length === 0) {
     console.log("[v0] Planilha sem Connected Sheets (data sources) para atualizar.")
-    return false
+    return { triggered: false, signature: "", hasSources: false }
   }
+
+  const signature = refreshSignature(before)
 
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}:batchUpdate`,
@@ -244,21 +270,32 @@ export async function refreshSheetDataSources(): Promise<boolean> {
     throw new Error(`Refresh data source ${res.status}: ${body.slice(0, 250)}`)
   }
 
-  // Aguarda a execução concluir (estado deixa de ser RUNNING). Timeout ~45s.
-  const deadline = Date.now() + 45_000
-  while (Date.now() < deadline) {
-    await sleep(2500)
-    const states = await getDataExecutionStates(sheetId, token)
-    const running = states.some((s) => s === "RUNNING")
-    if (!running) {
-      console.log("[v0] Refresh das Connected Sheets concluído. Estados:", states.join(", "))
-      // Pequena folga para a fórmula da aba lida recalcular.
-      await sleep(2000)
-      return true
-    }
-  }
-  console.log("[v0] Refresh ainda em execução após timeout; lendo os dados disponíveis.")
-  return true
+  console.log("[v0] Refresh das Connected Sheets disparado. Assinatura base:", signature || "(vazia)")
+  return { triggered: true, signature, hasSources: true }
+}
+
+/**
+ * Consulta o STATUS de um refresh em andamento, comparando com a assinatura base.
+ * done = a assinatura avançou (nova execução registrada) E nada está RUNNING/PENDING.
+ */
+export async function getSheetRefreshStatus(baselineSignature: string): Promise<{
+  done: boolean
+  running: boolean
+  hasSources: boolean
+}> {
+  const credentials = getCredentials()
+  const rawId = process.env.GOOGLE_SHEET_ID
+  if (!credentials || !rawId) return { done: true, running: false, hasSources: false }
+
+  const sheetId = extractSheetId(rawId)
+  const token = await getAccessToken(credentials)
+  const states = await getDataExecutionStates(sheetId, token)
+  if (states.length === 0) return { done: true, running: false, hasSources: false }
+
+  const sig = refreshSignature(states)
+  const running = states.some((s) => s.state === "RUNNING" || s.state === "PENDING")
+  const avancou = sig !== baselineSignature
+  return { done: avancou && !running, running, hasSources: true }
 }
 
 /** Busca as linhas do Routing Clock a partir do Google Sheet configurado. */
