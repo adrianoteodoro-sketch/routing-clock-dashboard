@@ -220,53 +220,6 @@ export function getDeadline(
   }
 }
 
-/** Formata um Date local como "YYYY-MM-DD". */
-function toYMD(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, "0")
-  const d = String(date.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
-}
-
-/** Subtrai N dias úteis (pula sábado e domingo). */
-function subtractBusinessDays(date: Date, days: number): Date {
-  const d = new Date(date)
-  let remaining = days
-  while (remaining > 0) {
-    d.setDate(d.getDate() - 1)
-    const dow = d.getDay()
-    if (dow !== 0 && dow !== 6) remaining--
-  }
-  return d
-}
-
-/**
- * Deriva a DATA DA ROTEIRIZAÇÃO (YYYY-MM-DD) a partir da data da coleta e do
- * tipo de roteirização, usando as mesmas regras de prazo dos roteiros:
- *  - W-1: dia de publicação tático (regra semanal de getDeadline)
- *  - D-1: dia útil anterior à coleta (regra replanning de getDeadline)
- *  - D-2: 2 dias úteis antes da coleta (longa distância)
- * Se a coleta for inválida, retorna "". Se a regra não se aplicar (ex.: fim de
- * semana sem prazo), faz fallback para a própria data da coleta.
- */
-export function routingDateFromColeta(dataColeta: string, tipo: string): string {
-  if (!dataColeta) return ""
-  const base = new Date(`${dataColeta}T00:00:00`)
-  if (Number.isNaN(base.getTime())) return ""
-
-  const t = tipo.toUpperCase().replace(/\s/g, "")
-  let deadline: Date | null = null
-  if (t.includes("W-1") || t.includes("W1")) {
-    deadline = getDeadline(base, "tactical")
-  } else if (t.includes("D-2") || t.includes("D2")) {
-    deadline = subtractBusinessDays(base, 2)
-  } else if (t.includes("D-1") || t.includes("D1")) {
-    deadline = getDeadline(base, "replanning")
-  }
-
-  return toYMD(deadline ?? base)
-}
-
 // ----------------------------------------------------------------------------
 // Processamento das linhas cruas -> RoutingOrder classificada
 // ----------------------------------------------------------------------------
@@ -414,10 +367,11 @@ function applyFilters(orders: RoutingOrder[], f: Filters): RoutingOrder[] {
   if (f.mes !== "TODOS" && o.month !== f.mes) return false
     if (f.semana !== "TODAS" && o.week !== f.semana) return false
     if (f.tipo && f.tipo !== "TODOS" && o.tipoRoteirizacao !== f.tipo) return false
-    // Intervalo por data de roteirização (created_date)
-    if (f.rotInicio && o.routingDate < f.rotInicio) return false
-    if (f.rotFim && o.routingDate > f.rotFim) return false
-    // Intervalo por data de coleta (RTG_ORD_PLAN_LOCAL_DATE)
+    // Filtro "Data Roteirização": casa pela Data da Coleta (RTG_ORD_PLAN_LOCAL_DATE),
+    // garantindo acuracidade com o registro das anomalias (que também usa a coleta).
+    if (f.rotInicio && o.collectionDate < f.rotInicio) return false
+    if (f.rotFim && o.collectionDate > f.rotFim) return false
+    // Intervalo dedicado por data de coleta (RTG_ORD_PLAN_LOCAL_DATE), se informado.
     if (f.coletaInicio && o.collectionDate < f.coletaInicio) return false
     if (f.coletaFim && o.collectionDate > f.coletaFim) return false
     return true
@@ -472,8 +426,8 @@ function buildPerfPorTipo(orders: RoutingOrder[]): PerfPorTipo[] {
 /**
  * Correlaciona as anomalias registradas com o período/escopo filtrado e as agrupa
  * por categoria de problema, separando as que geraram atraso das que não geraram.
- * Filtra por regional, hub, tipo e intervalo da DATA DE ROTEIRIZAÇÃO, derivada da
- * data da coleta (col. B) + tipo de roteirização (col. E) — mesma regra dos roteiros.
+ * Filtra por regional, hub, tipo e intervalo da DATA DA COLETA (col. B), o mesmo
+ * eixo usado pelos roteiros (RTG_ORD_PLAN_LOCAL_DATE) — garante acuracidade.
  * Obs.: os filtros de mês/semana não se aplicam (anomalia não tem rótulo semanal).
  */
 function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResumo {
@@ -481,9 +435,8 @@ function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResum
     if (f.regional !== "TODAS" && a.regional !== f.regional) return false
     if (f.hub && f.hub !== "TODOS" && a.hub !== f.hub) return false
     if (f.tipo && f.tipo !== "TODOS" && a.tipoRoteirizacao !== f.tipo) return false
-    const rotDate = routingDateFromColeta(a.dataColeta, a.tipoRoteirizacao)
-    if (f.rotInicio && (!rotDate || rotDate < f.rotInicio)) return false
-    if (f.rotFim && (!rotDate || rotDate > f.rotFim)) return false
+    if (f.rotInicio && (!a.dataColeta || a.dataColeta < f.rotInicio)) return false
+    if (f.rotFim && (!a.dataColeta || a.dataColeta > f.rotFim)) return false
     return true
   })
 
