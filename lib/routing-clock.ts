@@ -220,6 +220,53 @@ export function getDeadline(
   }
 }
 
+/** Formata um Date local como "YYYY-MM-DD". */
+function toYMD(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+/** Subtrai N dias úteis (pula sábado e domingo). */
+function subtractBusinessDays(date: Date, days: number): Date {
+  const d = new Date(date)
+  let remaining = days
+  while (remaining > 0) {
+    d.setDate(d.getDate() - 1)
+    const dow = d.getDay()
+    if (dow !== 0 && dow !== 6) remaining--
+  }
+  return d
+}
+
+/**
+ * Deriva a DATA DA ROTEIRIZAÇÃO (YYYY-MM-DD) a partir da data da coleta e do
+ * tipo de roteirização, usando as mesmas regras de prazo dos roteiros:
+ *  - W-1: dia de publicação tático (regra semanal de getDeadline)
+ *  - D-1: dia útil anterior à coleta (regra replanning de getDeadline)
+ *  - D-2: 2 dias úteis antes da coleta (longa distância)
+ * Se a coleta for inválida, retorna "". Se a regra não se aplicar (ex.: fim de
+ * semana sem prazo), faz fallback para a própria data da coleta.
+ */
+export function routingDateFromColeta(dataColeta: string, tipo: string): string {
+  if (!dataColeta) return ""
+  const base = new Date(`${dataColeta}T00:00:00`)
+  if (Number.isNaN(base.getTime())) return ""
+
+  const t = tipo.toUpperCase().replace(/\s/g, "")
+  let deadline: Date | null = null
+  if (t.includes("W-1") || t.includes("W1")) {
+    deadline = getDeadline(base, "tactical")
+  } else if (t.includes("D-2") || t.includes("D2")) {
+    deadline = subtractBusinessDays(base, 2)
+  } else if (t.includes("D-1") || t.includes("D1")) {
+    deadline = getDeadline(base, "replanning")
+  }
+
+  return toYMD(deadline ?? base)
+}
+
 // ----------------------------------------------------------------------------
 // Processamento das linhas cruas -> RoutingOrder classificada
 // ----------------------------------------------------------------------------
@@ -425,7 +472,8 @@ function buildPerfPorTipo(orders: RoutingOrder[]): PerfPorTipo[] {
 /**
  * Correlaciona as anomalias registradas com o período/escopo filtrado e as agrupa
  * por categoria de problema, separando as que geraram atraso das que não geraram.
- * Filtra por regional, hub, tipo e intervalo da data "Registrado em" (col. A).
+ * Filtra por regional, hub, tipo e intervalo da DATA DE ROTEIRIZAÇÃO, derivada da
+ * data da coleta (col. B) + tipo de roteirização (col. E) — mesma regra dos roteiros.
  * Obs.: os filtros de mês/semana não se aplicam (anomalia não tem rótulo semanal).
  */
 function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResumo {
@@ -433,8 +481,9 @@ function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResum
     if (f.regional !== "TODAS" && a.regional !== f.regional) return false
     if (f.hub && f.hub !== "TODOS" && a.hub !== f.hub) return false
     if (f.tipo && f.tipo !== "TODOS" && a.tipoRoteirizacao !== f.tipo) return false
-    if (f.rotInicio && a.registradoEm < f.rotInicio) return false
-    if (f.rotFim && a.registradoEm > f.rotFim) return false
+    const rotDate = routingDateFromColeta(a.dataColeta, a.tipoRoteirizacao)
+    if (f.rotInicio && (!rotDate || rotDate < f.rotInicio)) return false
+    if (f.rotFim && (!rotDate || rotDate > f.rotFim)) return false
     return true
   })
 
