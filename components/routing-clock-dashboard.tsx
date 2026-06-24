@@ -7,6 +7,7 @@ import { FiltersBar } from "@/components/filters-bar"
 import { KpiCards } from "@/components/kpi-cards"
 import { MonthlyChart, WeeklyChart } from "@/components/performance-charts"
 import { WaterfallChart } from "@/components/waterfall-chart"
+import { TipoPerformanceChart } from "@/components/tipo-performance-chart"
 import { OffendersList, SeverityRange } from "@/components/offenders-severity"
 import { HubAnalysis, HubTable } from "@/components/hub-analysis"
 import { Loader2, LayoutDashboard, Building2, AlertTriangle } from "lucide-react"
@@ -174,9 +175,12 @@ export function RoutingClockDashboard() {
                 </span>
               </div>
 
-              <KpiCards kpis={data.kpis} />
+              <KpiCards kpis={data.kpis} porTipo={data.performancePorTipo} />
 
-              <WaterfallChart data={data.waterfall} />
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <WaterfallChart data={data.waterfall} />
+                <TipoPerformanceChart data={data.performancePorTipo} meta={data.kpis.meta} />
+              </div>
 
               {/* HUBs Impactados */}
               <section className="flex flex-col gap-4">
