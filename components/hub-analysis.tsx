@@ -328,12 +328,8 @@ export function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Me
               <th className="px-4 py-3 text-right font-bold uppercase tracking-wide text-muted-foreground">
                 Ocorrências
               </th>
-              <th className="px-4 py-3 text-right font-bold uppercase tracking-wide text-muted-foreground">% do HUB</th>
-              <th className="px-4 py-3 text-right font-bold uppercase tracking-wide text-muted-foreground">
-                Pior {magLabel}
-              </th>
-              <th className="px-4 py-3 text-right font-bold uppercase tracking-wide text-muted-foreground">
-                Média {magLabel}
+              <th className="px-4 py-3 text-center font-bold uppercase tracking-wide text-muted-foreground">
+                Anomalia
               </th>
             </tr>
           </thead>
@@ -362,13 +358,19 @@ export function HubTable({ secao, metric }: { secao: HubAnaliseSecao; metric: Me
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{h.regional}</td>
                     <td className="px-4 py-3 text-right font-bold text-danger">{h.ocorrencias}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-foreground">{h.pct.toFixed(1)}%</td>
-                    <td className="px-4 py-3 text-right font-semibold text-foreground">{fmtMin(h.piorMinutos)}</td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">{fmtMin(h.mediaMinutos)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                          h.temAnomalia ? "bg-danger/10 text-danger" : "bg-warning/15 text-warning"
+                        }`}
+                      >
+                        {h.temAnomalia ? "Sim" : "Pendente"}
+                      </span>
+                    </td>
                   </tr>
                   {isOpen && (
                     <tr className="border-b border-border bg-secondary/20">
-                      <td colSpan={7} className="px-4 py-4">
+                      <td colSpan={5} className="px-4 py-4">
                         <div className="flex flex-col gap-5">
                           {/* Abertura por dia: atrasos + TMR juntos com mini-gráfico */}
                           <div>

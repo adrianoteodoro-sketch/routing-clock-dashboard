@@ -446,8 +446,9 @@ function buildPerfPorTipo(orders: RoutingOrder[]): PerfPorTipo[] {
  * eixo usado pelos roteiros (RTG_ORD_PLAN_LOCAL_DATE) — garante acuracidade.
  * Obs.: os filtros de mês/semana não se aplicam (anomalia não tem rótulo semanal).
  */
-function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResumo {
-  const filtered = anomalias.filter((a) => {
+/** Aplica os mesmos filtros de período/escopo das anomalias (data da coleta). */
+function filtraAnomalias(anomalias: Anomalia[], f: Filters): Anomalia[] {
+  return anomalias.filter((a) => {
     if (!matchesMulti(f.regional, "TODAS", a.regional)) return false
     if (!matchesMulti(f.hub, "TODOS", a.hub)) return false
     if (!matchesMulti(f.tipo, "TODOS", a.tipoRoteirizacao)) return false
@@ -455,6 +456,15 @@ function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResum
     if (f.rotFim && (!a.dataColeta || a.dataColeta > f.rotFim)) return false
     return true
   })
+}
+
+/** Conjunto de HUBs (facilityId) que possuem ao menos uma anomalia registrada no período. */
+function buildHubsComAnomalia(anomalias: Anomalia[], f: Filters): Set<string> {
+  return new Set(filtraAnomalias(anomalias, f).map((a) => a.hub).filter(Boolean))
+}
+
+function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResumo {
+  const filtered = filtraAnomalias(anomalias, f)
 
   const catMap = new Map<string, { comAtraso: number; semAtraso: number }>()
   let comAtraso = 0
@@ -636,7 +646,11 @@ function buildAberturaDiaria(all: RoutingOrder[]): HubDiaResumo[] {
     .sort((a, b) => a.dia.localeCompare(b.dia))
 }
 
-function buildHubSecao(orders: RoutingOrder[], metric: HubMetric): HubAnaliseSecao {
+function buildHubSecao(
+  orders: RoutingOrder[],
+  metric: HubMetric,
+  hubsComAnomalia: Set<string> = new Set(),
+): HubAnaliseSecao {
   // Predicado e magnitude (minutos) de cada métrica.
   const matches = (o: RoutingOrder) => (metric === "atraso" ? !o.withinDeadline : o.tmrState === "estouro")
   const magnitude = (o: RoutingOrder) => (metric === "atraso" ? o.minutesLate : o.tmrExcessMinutes)
@@ -678,6 +692,7 @@ function buildHubSecao(orders: RoutingOrder[], metric: HubMetric): HubAnaliseSec
         pct: Number(((g.hits.length / g.total) * 100).toFixed(2)),
         piorMinutos,
         mediaMinutos,
+        temAnomalia: hubsComAnomalia.has(facilityId),
         detalhes,
         abertura: buildAberturaDiaria(g.all),
       }
@@ -714,10 +729,10 @@ function buildHubSecao(orders: RoutingOrder[], metric: HubMetric): HubAnaliseSec
   }
 }
 
-function buildHubAnalise(orders: RoutingOrder[]): HubAnalise {
+function buildHubAnalise(orders: RoutingOrder[], hubsComAnomalia: Set<string> = new Set()): HubAnalise {
   return {
-    atraso: buildHubSecao(orders, "atraso"),
-    estouro: buildHubSecao(orders, "estouro"),
+    atraso: buildHubSecao(orders, "atraso", hubsComAnomalia),
+    estouro: buildHubSecao(orders, "estouro", hubsComAnomalia),
   }
 }
 
@@ -737,6 +752,8 @@ export function buildDashboard(
 
   // Resumo de anomalias do período (reaproveitado no waterfall e no painel lateral).
   const anomaliasResumo = buildAnomaliasResumo(anomalias, filters)
+  // HUBs com anomalia registrada no período, para sinalizar na tabela de HUBs.
+  const hubsComAnomalia = buildHubsComAnomalia(anomalias, filters)
 
   // Tendência semana a semana: última semana vs penúltima (períodos comparáveis).
   const ultima = semanal[semanal.length - 1]
@@ -786,7 +803,7 @@ export function buildDashboard(
     anomalias: anomaliasResumo,
     ofensores: buildOfensores(filtered),
     rangeSeveridade: buildRangeSeveridade(filtered),
-    hubAnalise: buildHubAnalise(filtered),
+    hubAnalise: buildHubAnalise(filtered, hubsComAnomalia),
     opcoes: {
       regionais: uniq(orders.map((o) => o.regional)),
       hubs: uniq(
