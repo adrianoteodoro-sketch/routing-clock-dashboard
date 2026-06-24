@@ -7,6 +7,7 @@ import type {
   HubDiaResumo,
   HubResumo,
   Anomalia,
+  AnomaliaCategoria,
   AnomaliasResumo,
   Ofensor,
   PerfPorTipo,
@@ -479,7 +480,12 @@ function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResum
   return { total: filtered.length, comAtraso, semAtraso, categorias }
 }
 
-function buildWaterfall(orders: RoutingOrder[], anomaliasComAtraso = 0): WaterfallPonto[] {
+/**
+ * Monta o waterfall em cascata. Cada CATEGORIA de anomalia que gerou atraso vira
+ * uma barra própria (motivo do atraso). O restante da não aderência — atrasos sem
+ * anomalia registrada — é consolidado em uma única barra "Entregue Fora do Prazo".
+ */
+function buildWaterfall(orders: RoutingOrder[], anomaliaCategorias: AnomaliaCategoria[] = []): WaterfallPonto[] {
   const total = orders.length
   const performance = perf(orders)
   if (total === 0) {
@@ -489,24 +495,18 @@ function buildWaterfall(orders: RoutingOrder[], anomaliasComAtraso = 0): Waterfa
     ]
   }
 
-  // Agrupa as não aderências por motivo
-  const breaches = orders.filter((o) => !o.isAdherent)
-  const byReason = new Map<string, number>()
-  for (const b of breaches) {
-    byReason.set(b.reason, (byReason.get(b.reason) ?? 0) + 1)
-  }
-
   const gap = 100 - performance // total de pontos perdidos (não aderência)
 
-  // Impacto das anomalias que geraram atraso, em pontos percentuais, limitado ao
-  // gap de não aderência (não faz sentido a barra ultrapassar a perda real).
-  const anomaliaPpRaw = (anomaliasComAtraso / total) * 100
-  const anomaliaPp = Math.min(anomaliaPpRaw, gap)
+  // Impacto (pp) de cada categoria de anomalia que gerou atraso.
+  const anomaliaBars = anomaliaCategorias
+    .filter((c) => c.comAtraso > 0)
+    .map((c) => ({ label: c.problema, pp: (c.comAtraso / total) * 100 }))
+    .sort((a, b) => b.pp - a.pp)
 
-  // As barras de motivo passam a dividir o restante do gap (gap - anomaliaPp),
-  // reduzidas proporcionalmente para que o Total continue exatamente 100%.
-  const restante = gap - anomaliaPp
-  const scale = gap > 0 ? restante / gap : 0
+  // Soma do impacto das anomalias, limitada ao gap real (escala se exceder).
+  const somaAnomalias = anomaliaBars.reduce((s, b) => s + b.pp, 0)
+  const fatorAnomalia = somaAnomalias > gap && somaAnomalias > 0 ? gap / somaAnomalias : 1
+  const anomaliaPpTotal = Math.min(somaAnomalias, gap)
 
   const points: WaterfallPonto[] = []
   const performance2 = Number(performance.toFixed(2))
@@ -514,25 +514,26 @@ function buildWaterfall(orders: RoutingOrder[], anomaliasComAtraso = 0): Waterfa
 
   let acumulado = performance
 
-  // Barra dedicada ao atraso gerado por anomalias registradas.
-  if (anomaliaPp > 0) {
-    acumulado += anomaliaPp
+  // Uma barra por motivo de anomalia que gerou atraso.
+  for (const b of anomaliaBars) {
+    const pp = b.pp * fatorAnomalia
+    if (pp <= 0) continue
+    acumulado += pp
     points.push({
-      label: "Atraso por anomalia",
-      valor: Number(anomaliaPp.toFixed(2)),
+      label: b.label,
+      valor: Number(pp.toFixed(2)),
       acumulado: Number(acumulado.toFixed(2)),
       tipo: "anomalia",
     })
   }
 
-  const sortedReasons = [...byReason.entries()].sort((a, b) => b[1] - a[1])
-  for (const [reason, count] of sortedReasons) {
-    const pp = ((count / total) * 100) * scale
-    if (pp <= 0) continue
-    acumulado += pp
+  // Restante da não aderência (sem anomalia registrada) -> "Entregue Fora do Prazo".
+  const restante = gap - anomaliaPpTotal
+  if (restante > 0.001) {
+    acumulado += restante
     points.push({
-      label: reason,
-      valor: Number(pp.toFixed(2)),
+      label: "Entregue Fora do Prazo",
+      valor: Number(restante.toFixed(2)),
       acumulado: Number(acumulado.toFixed(2)),
       tipo: "perda",
     })
@@ -781,7 +782,7 @@ export function buildDashboard(
     mensal,
     semanal,
     performancePorTipo: buildPerfPorTipo(filtered),
-    waterfall: buildWaterfall(filtered, anomaliasResumo.comAtraso),
+    waterfall: buildWaterfall(filtered, anomaliasResumo.categorias),
     anomalias: anomaliasResumo,
     ofensores: buildOfensores(filtered),
     rangeSeveridade: buildRangeSeveridade(filtered),

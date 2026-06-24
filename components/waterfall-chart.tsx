@@ -58,11 +58,11 @@ export function WaterfallChart({ data }: { data: WaterfallPonto[] }) {
       <div className="mb-2 flex flex-wrap items-center gap-4">
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="h-2.5 w-2.5 rounded-sm" style={{ background: ANOMALIA }} aria-hidden />
-          Atraso por anomalia registrada
+          Atraso por motivo de anomalia
         </span>
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="h-2.5 w-2.5 rounded-sm" style={{ background: DANGER }} aria-hidden />
-          Demais motivos de atraso
+          Entregue Fora do Prazo (sem anomalia)
         </span>
       </div>
       <ResponsiveContainer width="100%" height={380}>
