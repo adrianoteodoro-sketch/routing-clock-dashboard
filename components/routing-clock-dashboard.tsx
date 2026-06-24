@@ -86,6 +86,7 @@ export function RoutingClockDashboard() {
 
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [refreshingSource, setRefreshingSource] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
 
   // Atualiza o horário sempre que novos dados chegam com sucesso.
   useEffect(() => {
@@ -103,14 +104,47 @@ export function RoutingClockDashboard() {
     })
   }
 
-  // "Atualizar Dados": força a Connected Sheet a re-consultar o BigQuery (refresh=1)
-  // e injeta o resultado fresco no cache do SWR.
+  // "Atualizar Dados": modelo assíncrono. Dispara o refresh da Connected Sheet,
+  // faz polling do status até a nova execução do BigQuery concluir e só então
+  // rebusca os dados. Evita o timeout da função serverless (refresh pode ser longo).
   const handleRefresh = async () => {
     setRefreshingSource(true)
+    setRefreshError(null)
     try {
-      const res = await fetch(`${query}&refresh=1`)
-      const fresh = (await res.json()) as DashboardData
-      await mutate(fresh, { revalidate: false })
+      // 1) Dispara o refresh e captura a assinatura base (lastRefreshTime anterior).
+      const trigRes = await fetch("/api/routing-clock/refresh?action=trigger")
+      const trig = (await trigRes.json()) as {
+        triggered?: boolean
+        signature?: string
+        hasSources?: boolean
+        error?: string
+      }
+
+      // Se o Google recusou o refresh (ex.: VPC Service Controls), reporta ao usuário.
+      if (trig.error) {
+        setRefreshError(trig.error)
+      }
+
+      // 2) Se há Connected Sheets, faz polling até concluir (até ~4 min).
+      if (trig.triggered && trig.hasSources) {
+        const sig = trig.signature ?? ""
+        const deadline = Date.now() + 240_000
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 3000))
+          try {
+            const stRes = await fetch(`/api/routing-clock/refresh?action=status&sig=${encodeURIComponent(sig)}`)
+            const st = (await stRes.json()) as { done?: boolean }
+            if (st.done) break
+          } catch {
+            // ignora falha transitória de polling e tenta de novo
+          }
+        }
+        // Pequena folga para a fórmula da aba lida (Extração_Query) recalcular.
+        await new Promise((r) => setTimeout(r, 2500))
+      }
+
+      // 3) Rebusca os dados já atualizados.
+      await mutate()
       setLastUpdated(new Date())
     } catch {
       await mutate()
@@ -126,6 +160,28 @@ export function RoutingClockDashboard() {
         refreshing={isValidating || refreshingSource}
         lastUpdated={lastUpdated}
       />
+
+      {refreshError && (
+        <div className="mx-auto max-w-[1600px] px-6 pt-4">
+          <div
+            role="alert"
+            className="flex items-start gap-3 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="font-semibold">Não foi possível atualizar a consulta na planilha.</span>
+              <span className="break-words text-danger/90">{refreshError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRefreshError(null)}
+              className="ml-auto shrink-0 text-xs font-semibold uppercase tracking-wide text-danger/80 hover:text-danger"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start">
         {/* Barra lateral de filtros (recolhível) - lado esquerdo */}

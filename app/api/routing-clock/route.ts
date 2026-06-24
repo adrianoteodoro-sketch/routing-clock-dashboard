@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { fetchRoutingOrders } from "@/lib/bigquery"
-import { fetchAnomaliasFromSheet, fetchD2RowsFromSheet, refreshSheetDataSources } from "@/lib/google-sheets"
+import { fetchAnomaliasFromSheet, fetchD2RowsFromSheet } from "@/lib/google-sheets"
 import { buildDashboard, processD2Rows, processRows } from "@/lib/routing-clock"
 import type { Filters } from "@/lib/types"
 
@@ -23,18 +23,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Ao clicar em "Atualizar Dados" (refresh=1), força a Connected Sheet a
-    // re-consultar o BigQuery antes de ler os valores.
-    if (sp.get("refresh") === "1") {
-      try {
-        await refreshSheetDataSources()
-      } catch (e) {
-        console.log("[v0] Falha ao atualizar Connected Sheet:", (e as Error).message)
-      }
-    }
-
     // Busca a base principal (RBM 2.0), o histórico RBM 1.0 (aba D-2) e as
-    // anomalias registradas, tudo em paralelo.
+    // anomalias registradas, tudo em paralelo. O refresh da Connected Sheet é
+    // disparado/aguardado pelo cliente via /api/routing-clock/refresh.
     const [{ rows, fonte }, d2rows, anomalias] = await Promise.all([
       fetchRoutingOrders(),
       fetchD2RowsFromSheet().catch((e) => {

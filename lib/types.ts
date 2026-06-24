@@ -181,6 +181,7 @@ export interface HubResumo {
   pct: number // ocorrencias / total * 100
   piorMinutos: number // maior atraso (min) ou maior excesso de TMR (min)
   mediaMinutos: number // média de atraso/excesso entre as ocorrências
+  temAnomalia: boolean // true se há anomalia registrada para o HUB no período filtrado
   detalhes: HubRoteiroDetalhe[] // roteiros problemáticos (drill-down)
   abertura: HubDiaResumo[] // abertura por dia (atraso + TMR), ordenada por dia
 }
