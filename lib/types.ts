@@ -110,12 +110,12 @@ export interface Filters {
   semana: string
   // Tipo de roteirização: "TODOS" | "D-1" | "D-2" | "W-1"
   tipo: string
-  // Filtro por data de roteirização (created_date) - "YYYY-MM-DD" ou "" (sem filtro)
+  // Filtro por DATA DA COLETA (RTG_ORD_PLAN_LOCAL_DATE) - "YYYY-MM-DD" ou "" (sem filtro)
   rotInicio: string
   rotFim: string
-  // Filtro por data de coleta (RTG_ORD_PLAN_LOCAL_DATE) - "YYYY-MM-DD" ou ""
-  coletaInicio: string
-  coletaFim: string
+  // Filtro por DATA DA ROTEIRIZAÇÃO (date_created) - "YYYY-MM-DD" ou "" (sem filtro)
+  roteirizacaoInicio: string
+  roteirizacaoFim: string
 }
 
 export interface Kpis {
@@ -239,11 +239,25 @@ export interface AnomaliasResumo {
   categorias: AnomaliaCategoria[]
 }
 
+/**
+ * Identificação de um dia que está sendo roteirizado: combinação de tipo de
+ * roteirização (W-1/D-1/D-2) com o dia da semana da coleta (Seg..Sáb). Ex.: "D-1 Ter".
+ */
+export interface DiaRoteirizado {
+  tipo: string // W-1 / D-1 / D-2
+  diaSemana: string // Seg, Ter, Qua, Qui, Sex, Sáb, Dom
+  ordemDia: number // 1=Seg ... 7=Dom (para ordenação)
+  volume: number // qtd de roteiros nessa combinação
+  performance: number // resultado do Routing Clock (% aderência) por dia de coleta
+  meta: number // meta de performance (referência)
+}
+
 export interface DashboardData {
   kpis: Kpis
   mensal: SeriePonto[]
   semanal: SeriePonto[]
   performancePorTipo: PerfPorTipo[]
+  diasRoteirizados: DiaRoteirizado[]
   waterfall: WaterfallPonto[]
   anomalias: AnomaliasResumo
   ofensores: Ofensor[]

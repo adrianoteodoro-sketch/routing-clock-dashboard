@@ -126,6 +126,7 @@ function parseValues(values: string[][]): RawRoutingOrder[] {
   const idx = (name: string) => header.indexOf(norm(name))
 
   const iCreatedDate = idx("created_date")
+  const iDateCreated = idx("date_created")
   const iCreatedTime = idx("created_time")
   const iUpdatedDate = idx("updated_date")
   const iUpdatedTime = idx("updated_time")
@@ -158,7 +159,8 @@ function parseValues(values: string[][]): RawRoutingOrder[] {
       Regional: (iRegional >= 0 ? (row[iRegional] ?? "").trim() : "") || regionalForHub(facility),
       RTG_ORD_PLAN_LOCAL_DATE: normalizeDate(row[iPlanDate] ?? ""),
       RTG_ORD_STATUS: (row[iStatus] ?? "").trim(),
-      date_created: normalizeDate(row[iCreatedDate] ?? ""),
+      // Coluna dedicada "date_created" (data da roteirização); fallback p/ created_date.
+      date_created: normalizeDate(row[iDateCreated >= 0 ? iDateCreated : iCreatedDate] ?? ""),
       planification_type: planType,
       TMR_Routing: normalizeHHMM(row[iTmr] ?? ""),
       TMR_Routing_Exec: normalizeHHMM(row[iTmrExec] ?? ""),

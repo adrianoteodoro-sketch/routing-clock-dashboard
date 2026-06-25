@@ -9,6 +9,7 @@ import type {
   Anomalia,
   AnomaliaCategoria,
   AnomaliasResumo,
+  DiaRoteirizado,
   Ofensor,
   PerfPorTipo,
   RangeSeveridade,
@@ -284,7 +285,8 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
       planificationType: r.planification_type,
       tipoRoteirizacao: getTipoRoteirizacao(r.SHP_FACILITY_ID, collectionDate, r.planification_type),
       collectionDate: r.RTG_ORD_PLAN_LOCAL_DATE,
-      routingDate: r.created_date,
+      // Data da roteirização = coluna date_created (criação do roteiro); fallback p/ created_date.
+      routingDate: r.date_created || r.created_date,
       routingStartedAt: parseDateTime(r.created_date, r.created_time).toISOString(),
       publishedAt: publishedAt.toISOString(),
       deadline: deadline.toISOString(),
@@ -387,9 +389,9 @@ function applyFilters(orders: RoutingOrder[], f: Filters): RoutingOrder[] {
     // garantindo acuracidade com o registro das anomalias (que também usa a coleta).
     if (f.rotInicio && o.collectionDate < f.rotInicio) return false
     if (f.rotFim && o.collectionDate > f.rotFim) return false
-    // Intervalo dedicado por data de coleta (RTG_ORD_PLAN_LOCAL_DATE), se informado.
-    if (f.coletaInicio && o.collectionDate < f.coletaInicio) return false
-    if (f.coletaFim && o.collectionDate > f.coletaFim) return false
+    // Filtro "Data da Roteirização": casa pela data de criação do roteiro (date_created).
+    if (f.roteirizacaoInicio && o.routingDate < f.roteirizacaoInicio) return false
+    if (f.roteirizacaoFim && o.routingDate > f.roteirizacaoFim) return false
     return true
   })
 }
@@ -437,6 +439,56 @@ function buildPerfPorTipo(orders: RoutingOrder[]): PerfPorTipo[] {
       }
     })
     .filter((t) => t.volume > 0)
+}
+
+// Dia da semana (1=Seg..7=Dom) a partir de uma data "YYYY-MM-DD" no fuso local.
+const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+function diaSemanaInfo(iso: string): { label: string; ordem: number } | null {
+  if (!iso) return null
+  const [y, m, d] = iso.split("-").map(Number)
+  if (!y || !m || !d) return null
+  const js = new Date(y, m - 1, d).getDay() // 0=Dom..6=Sáb
+  const ordem = js === 0 ? 7 : js // 1=Seg..7=Dom
+  return { label: DIAS_SEMANA[js], ordem }
+}
+
+/**
+ * Identifica quais dias estão sendo roteirizados a partir do dia da roteirização:
+ * agrupa os roteiros por tipo (W-1/D-1/D-2) + dia da semana da COLETA roteirizada.
+ * Ex.: "D-1 Ter" indica que, na data de roteirização filtrada, foi roteirizado o
+ * dia de coleta que cai numa terça-feira. Retorna só as combinações presentes.
+ */
+function buildDiasRoteirizados(orders: RoutingOrder[]): DiaRoteirizado[] {
+  const ordemTipo: Record<string, number> = { "W-1": 0, "D-1": 1, "D-2": 2 }
+  // Agrupa por tipo + dia da semana da coleta, guardando os roteiros para
+  // calcular o resultado do Routing Clock (aderência) de cada combinação.
+  const groups = new Map<string, { tipo: string; diaSemana: string; ordemDia: number; items: RoutingOrder[] }>()
+  for (const o of orders) {
+    const info = diaSemanaInfo(o.collectionDate)
+    if (!info) continue
+    const key = `${o.tipoRoteirizacao}|${info.label}`
+    const g = groups.get(key)
+    if (g) {
+      g.items.push(o)
+    } else {
+      groups.set(key, { tipo: o.tipoRoteirizacao, diaSemana: info.label, ordemDia: info.ordem, items: [o] })
+    }
+  }
+  return [...groups.values()]
+    .map((g) => ({
+      tipo: g.tipo,
+      diaSemana: g.diaSemana,
+      ordemDia: g.ordemDia,
+      volume: g.items.length,
+      performance: Number(perf(g.items).toFixed(2)),
+      meta: META_PERFORMANCE,
+    }))
+    .sort((a, b) => {
+      const ta = ordemTipo[a.tipo] ?? 99
+      const tb = ordemTipo[b.tipo] ?? 99
+      if (ta !== tb) return ta - tb
+      return a.ordemDia - b.ordemDia
+    })
 }
 
 /**
@@ -799,6 +851,7 @@ export function buildDashboard(
     mensal,
     semanal,
     performancePorTipo: buildPerfPorTipo(filtered),
+    diasRoteirizados: buildDiasRoteirizados(filtered),
     waterfall: buildWaterfall(filtered, anomaliasResumo.categorias),
     anomalias: anomaliasResumo,
     ofensores: buildOfensores(filtered),

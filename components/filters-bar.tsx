@@ -153,21 +153,21 @@ function DateRangeFilter({
   return (
     <div className="flex flex-col gap-1">
       <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</label>
-      <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1.5">
         <input
           type="date"
           value={inicio}
           onChange={(e) => onInicio(e.target.value)}
           aria-label={`${label} - data inicial`}
-          className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-        <span className="text-center text-[11px] font-medium text-muted-foreground">até</span>
+        <span className="shrink-0 text-[11px] font-medium text-muted-foreground">até</span>
         <input
           type="date"
           value={fim}
           onChange={(e) => onFim(e.target.value)}
           aria-label={`${label} - data final`}
-          className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
     </div>
@@ -247,13 +247,23 @@ export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onR
           onChange={(v) => onChange({ tipo: v })}
           highlight
         />
-        <DateRangeFilter
-          label="Data da Coleta"
-          inicio={filters.rotInicio}
-          fim={filters.rotFim}
-          onInicio={(v) => onChange({ rotInicio: v })}
-          onFim={(v) => onChange({ rotFim: v })}
-        />
+        <div className="flex flex-col gap-3 rounded-lg border border-border/70 bg-secondary/20 p-3">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-foreground">Período</span>
+          <DateRangeFilter
+            label="Data da Roteirização"
+            inicio={filters.roteirizacaoInicio}
+            fim={filters.roteirizacaoFim}
+            onInicio={(v) => onChange({ roteirizacaoInicio: v })}
+            onFim={(v) => onChange({ roteirizacaoFim: v })}
+          />
+          <DateRangeFilter
+            label="Data da Coleta"
+            inicio={filters.rotInicio}
+            fim={filters.rotFim}
+            onInicio={(v) => onChange({ rotInicio: v })}
+            onFim={(v) => onChange({ rotFim: v })}
+          />
+        </div>
       </div>
 
       {onReset && (

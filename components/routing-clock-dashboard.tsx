@@ -44,17 +44,17 @@ function todayISO(): string {
 
 const TODAY = todayISO()
 
-// O dashboard sempre abre na data de HOJE em ambos os filtros de roteirização.
+// O dashboard abre na DATA DA ROTEIRIZAÇÃO de HOJE; a Data da Coleta começa sem filtro.
 const DEFAULT_FILTERS: Filters = {
   regional: "TODAS",
   hub: "TODOS",
   mes: "TODOS",
   semana: "TODAS",
   tipo: "TODOS",
-  rotInicio: TODAY,
-  rotFim: TODAY,
-  coletaInicio: "",
-  coletaFim: "",
+  rotInicio: "",
+  rotFim: "",
+  roteirizacaoInicio: TODAY,
+  roteirizacaoFim: TODAY,
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -73,8 +73,8 @@ export function RoutingClockDashboard() {
       tipo: filters.tipo,
       rotInicio: filters.rotInicio,
       rotFim: filters.rotFim,
-      coletaInicio: filters.coletaInicio,
-      coletaFim: filters.coletaFim,
+      roteirizacaoInicio: filters.roteirizacaoInicio,
+      roteirizacaoFim: filters.roteirizacaoFim,
     })
     return `/api/routing-clock?${sp.toString()}`
   }, [filters])
@@ -223,17 +223,21 @@ export function RoutingClockDashboard() {
             </div>
           ) : tab === "geral" ? (
             <>
-              {/* Data da coleta (mesma do filtro) - destaque para report gerencial */}
+              {/* Data da roteirização (mesma do filtro) - destaque para report gerencial */}
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Data da Coleta
+                  Data da Roteirização
                 </span>
                 <span className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                  {routingDateLabel(filters.rotInicio, filters.rotFim)}
+                  {routingDateLabel(filters.roteirizacaoInicio, filters.roteirizacaoFim)}
                 </span>
               </div>
 
-              <KpiCards kpis={data.kpis} porTipo={data.performancePorTipo} />
+              <KpiCards
+                kpis={data.kpis}
+                porTipo={data.performancePorTipo}
+                diasRoteirizados={data.diasRoteirizados}
+              />
 
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <WaterfallChart data={data.waterfall} />
