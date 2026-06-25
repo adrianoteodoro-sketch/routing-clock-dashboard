@@ -101,18 +101,23 @@ export function KpiCards({
                 if (dias.length === 0) return null
                 return (
                   <div key={tipo} className="flex flex-wrap items-center gap-1.5">
-                    {dias.map((d) => (
-                      <span
-                        key={`${d.tipo}-${d.diaSemana}`}
-                        title={`${d.volume.toLocaleString("pt-BR")} roteiros`}
-                        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${
-                          TIPO_BADGE[d.tipo] ?? "bg-secondary text-foreground"
-                        }`}
-                      >
-                        {d.tipo} {d.diaSemana}
-                        <span className="text-[10px] font-bold opacity-70">{formatNumber(d.volume)}</span>
-                      </span>
-                    ))}
+                    {dias.map((d) => {
+                      const ok = d.performance >= d.meta
+                      return (
+                        <span
+                          key={`${d.tipo}-${d.diaSemana}`}
+                          title={`${formatNumber(d.volume)} roteiros · meta ${formatDecimal(d.meta)}%`}
+                          className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold ${
+                            TIPO_BADGE[d.tipo] ?? "bg-secondary text-foreground"
+                          }`}
+                        >
+                          {d.tipo} {d.diaSemana}
+                          <span className={`text-[11px] font-bold ${ok ? "text-success" : "text-danger"}`}>
+                            {formatDecimal(d.performance)}%
+                          </span>
+                        </span>
+                      )
+                    })}
                   </div>
                 )
               })}

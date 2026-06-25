@@ -248,6 +248,8 @@ export interface DiaRoteirizado {
   diaSemana: string // Seg, Ter, Qua, Qui, Sex, Sáb, Dom
   ordemDia: number // 1=Seg ... 7=Dom (para ordenação)
   volume: number // qtd de roteiros nessa combinação
+  performance: number // resultado do Routing Clock (% aderência) por dia de coleta
+  meta: number // meta de performance (referência)
 }
 
 export interface DashboardData {

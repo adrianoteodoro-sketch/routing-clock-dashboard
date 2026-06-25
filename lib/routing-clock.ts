@@ -460,29 +460,35 @@ function diaSemanaInfo(iso: string): { label: string; ordem: number } | null {
  */
 function buildDiasRoteirizados(orders: RoutingOrder[]): DiaRoteirizado[] {
   const ordemTipo: Record<string, number> = { "W-1": 0, "D-1": 1, "D-2": 2 }
-  const map = new Map<string, DiaRoteirizado>()
+  // Agrupa por tipo + dia da semana da coleta, guardando os roteiros para
+  // calcular o resultado do Routing Clock (aderência) de cada combinação.
+  const groups = new Map<string, { tipo: string; diaSemana: string; ordemDia: number; items: RoutingOrder[] }>()
   for (const o of orders) {
     const info = diaSemanaInfo(o.collectionDate)
     if (!info) continue
     const key = `${o.tipoRoteirizacao}|${info.label}`
-    const existing = map.get(key)
-    if (existing) {
-      existing.volume += 1
+    const g = groups.get(key)
+    if (g) {
+      g.items.push(o)
     } else {
-      map.set(key, {
-        tipo: o.tipoRoteirizacao,
-        diaSemana: info.label,
-        ordemDia: info.ordem,
-        volume: 1,
-      })
+      groups.set(key, { tipo: o.tipoRoteirizacao, diaSemana: info.label, ordemDia: info.ordem, items: [o] })
     }
   }
-  return [...map.values()].sort((a, b) => {
-    const ta = ordemTipo[a.tipo] ?? 99
-    const tb = ordemTipo[b.tipo] ?? 99
-    if (ta !== tb) return ta - tb
-    return a.ordemDia - b.ordemDia
-  })
+  return [...groups.values()]
+    .map((g) => ({
+      tipo: g.tipo,
+      diaSemana: g.diaSemana,
+      ordemDia: g.ordemDia,
+      volume: g.items.length,
+      performance: Number(perf(g.items).toFixed(2)),
+      meta: META_PERFORMANCE,
+    }))
+    .sort((a, b) => {
+      const ta = ordemTipo[a.tipo] ?? 99
+      const tb = ordemTipo[b.tipo] ?? 99
+      if (ta !== tb) return ta - tb
+      return a.ordemDia - b.ordemDia
+    })
 }
 
 /**
