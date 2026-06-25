@@ -120,16 +120,13 @@ export function FaroContent({ embedded = false }: { embedded?: boolean }) {
               <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground">
                 ACOMPANHAMENTO DA <span className="text-primary">ROTEIRIZAÇÃO</span>
               </h1>
-              <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                Acompanhamento em tempo real por HUB e tipo
-              </p>
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <span className="text-muted-foreground">Dia</span>
+            <span className="text-muted-foreground">Dia da Roteirização</span>
             <input
               type="date"
               value={date}
