@@ -90,45 +90,6 @@ export function KpiCards({
           </div>
         )}
 
-        {diasRoteirizados.length > 0 && (
-          <div className="mt-4 border-t border-border pt-4">
-            <div className="mb-2 flex items-center gap-1.5 text-muted-foreground">
-              <CalendarDays className="h-4 w-4" />
-              <span className="text-[11px] font-bold uppercase tracking-wide">Dias Roteirizados</span>
-            </div>
-            <div className="flex flex-col gap-2">
-              {["W-1", "D-1", "D-2"].map((tipo) => {
-                // Exibe todas as combinações roteirizadas, inclusive fora da meta e zeradas (0%).
-                const dias = diasRoteirizados.filter((d) => d.tipo === tipo)
-                if (dias.length === 0) return null
-                return (
-                  <div key={tipo} className="flex flex-wrap items-center gap-1.5">
-                    {dias.map((d) => {
-                      const hasPerf = typeof d.performance === "number" && !Number.isNaN(d.performance)
-                      const ok = hasPerf && d.performance >= (d.meta ?? 0)
-                      return (
-                        <span
-                          key={`${d.tipo}-${d.diaSemana}`}
-                          title={`${formatNumber(d.volume)} roteiros · meta ${formatDecimal(d.meta)}%`}
-                          className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold ${
-                            TIPO_BADGE[d.tipo] ?? "bg-secondary text-foreground"
-                          }`}
-                        >
-                          {d.tipo} {d.diaSemana}
-                          {hasPerf && (
-                            <span className={`text-[11px] font-bold ${ok ? "text-success" : "text-danger"}`}>
-                              {formatDecimal(d.performance)}%
-                            </span>
-                          )}
-                        </span>
-                      )
-                    })}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Delta vs Meta */}
@@ -157,6 +118,49 @@ export function KpiCards({
           {formatDecimal(delta)} p.p.
         </p>
       </div>
+
+      {/* Dias Roteirizados */}
+      {diasRoteirizados.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:col-span-2 xl:col-span-1">
+          <div className="flex items-start justify-between">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <CalendarDays className="h-5 w-5" />
+            </div>
+          </div>
+          <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Dias Roteirizados</p>
+          <div className="mt-4 flex flex-col gap-2">
+            {["W-1", "D-1", "D-2"].map((tipo) => {
+              // Exibe todas as combinações roteirizadas, inclusive fora da meta e zeradas (0%).
+              const dias = diasRoteirizados.filter((d) => d.tipo === tipo)
+              if (dias.length === 0) return null
+              return (
+                <div key={tipo} className="flex flex-wrap items-center gap-1.5">
+                  {dias.map((d) => {
+                    const hasPerf = typeof d.performance === "number" && !Number.isNaN(d.performance)
+                    const ok = hasPerf && d.performance >= (d.meta ?? 0)
+                    return (
+                      <span
+                        key={`${d.tipo}-${d.diaSemana}`}
+                        title={`${formatNumber(d.volume)} roteiros · meta ${formatDecimal(d.meta)}%`}
+                        className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold ${
+                          TIPO_BADGE[d.tipo] ?? "bg-secondary text-foreground"
+                        }`}
+                      >
+                        {d.tipo} {d.diaSemana}
+                        {hasPerf && (
+                          <span className={`text-[11px] font-bold ${ok ? "text-success" : "text-danger"}`}>
+                            {formatDecimal(d.performance)}%
+                          </span>
+                        )}
+                      </span>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Volume total */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
