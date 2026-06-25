@@ -284,7 +284,8 @@ export function processRows(rows: RawRoutingOrder[]): RoutingOrder[] {
       planificationType: r.planification_type,
       tipoRoteirizacao: getTipoRoteirizacao(r.SHP_FACILITY_ID, collectionDate, r.planification_type),
       collectionDate: r.RTG_ORD_PLAN_LOCAL_DATE,
-      routingDate: r.created_date,
+      // Data da roteirização = coluna date_created (criação do roteiro); fallback p/ created_date.
+      routingDate: r.date_created || r.created_date,
       routingStartedAt: parseDateTime(r.created_date, r.created_time).toISOString(),
       publishedAt: publishedAt.toISOString(),
       deadline: deadline.toISOString(),
@@ -387,9 +388,9 @@ function applyFilters(orders: RoutingOrder[], f: Filters): RoutingOrder[] {
     // garantindo acuracidade com o registro das anomalias (que também usa a coleta).
     if (f.rotInicio && o.collectionDate < f.rotInicio) return false
     if (f.rotFim && o.collectionDate > f.rotFim) return false
-    // Intervalo dedicado por data de coleta (RTG_ORD_PLAN_LOCAL_DATE), se informado.
-    if (f.coletaInicio && o.collectionDate < f.coletaInicio) return false
-    if (f.coletaFim && o.collectionDate > f.coletaFim) return false
+    // Filtro "Data da Roteirização": casa pela data de criação do roteiro (date_created).
+    if (f.roteirizacaoInicio && o.routingDate < f.roteirizacaoInicio) return false
+    if (f.roteirizacaoFim && o.routingDate > f.roteirizacaoFim) return false
     return true
   })
 }

@@ -44,7 +44,7 @@ function todayISO(): string {
 
 const TODAY = todayISO()
 
-// O dashboard sempre abre na data de HOJE em ambos os filtros de roteirização.
+// O dashboard abre na DATA DA COLETA de HOJE; a Data da Roteirização começa sem filtro.
 const DEFAULT_FILTERS: Filters = {
   regional: "TODAS",
   hub: "TODOS",
@@ -53,8 +53,8 @@ const DEFAULT_FILTERS: Filters = {
   tipo: "TODOS",
   rotInicio: TODAY,
   rotFim: TODAY,
-  coletaInicio: "",
-  coletaFim: "",
+  roteirizacaoInicio: "",
+  roteirizacaoFim: "",
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -73,8 +73,8 @@ export function RoutingClockDashboard() {
       tipo: filters.tipo,
       rotInicio: filters.rotInicio,
       rotFim: filters.rotFim,
-      coletaInicio: filters.coletaInicio,
-      coletaFim: filters.coletaFim,
+      roteirizacaoInicio: filters.roteirizacaoInicio,
+      roteirizacaoFim: filters.roteirizacaoFim,
     })
     return `/api/routing-clock?${sp.toString()}`
   }, [filters])

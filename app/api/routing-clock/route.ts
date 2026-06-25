@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
     tipo: sp.get("tipo") ?? "TODOS",
     rotInicio: sp.get("rotInicio") ?? "",
     rotFim: sp.get("rotFim") ?? "",
-    coletaInicio: sp.get("coletaInicio") ?? "",
-    coletaFim: sp.get("coletaFim") ?? "",
+    roteirizacaoInicio: sp.get("roteirizacaoInicio") ?? "",
+    roteirizacaoFim: sp.get("roteirizacaoFim") ?? "",
   }
 
   try {

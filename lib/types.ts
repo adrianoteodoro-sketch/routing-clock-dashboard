@@ -110,12 +110,12 @@ export interface Filters {
   semana: string
   // Tipo de roteirização: "TODOS" | "D-1" | "D-2" | "W-1"
   tipo: string
-  // Filtro por data de roteirização (created_date) - "YYYY-MM-DD" ou "" (sem filtro)
+  // Filtro por DATA DA COLETA (RTG_ORD_PLAN_LOCAL_DATE) - "YYYY-MM-DD" ou "" (sem filtro)
   rotInicio: string
   rotFim: string
-  // Filtro por data de coleta (RTG_ORD_PLAN_LOCAL_DATE) - "YYYY-MM-DD" ou ""
-  coletaInicio: string
-  coletaFim: string
+  // Filtro por DATA DA ROTEIRIZAÇÃO (date_created) - "YYYY-MM-DD" ou "" (sem filtro)
+  roteirizacaoInicio: string
+  roteirizacaoFim: string
 }
 
 export interface Kpis {
