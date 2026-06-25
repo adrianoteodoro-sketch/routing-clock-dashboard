@@ -187,22 +187,13 @@ function toIso(date: string, time: string): string {
   return d.toISOString()
 }
 
-/** Detecta se a roteirização já foi publicada a partir do status + updated_time. */
-function isPublished(statusRaw: string, updatedDate: string, updatedTime: string): boolean {
-  const s = (statusRaw || "").toLowerCase()
-  // Status explicitamente "em andamento": nunca contam como publicado,
-  // mesmo que já exista updated_time preenchido.
-  const inProgress = s.includes("processing") || s.includes("draft")
-  if (inProgress) return false
-  const publishedLike =
-    s.includes("publish") ||
-    s.includes("public") ||
-    s.includes("finish") ||
-    s.includes("complet") ||
-    s.includes("clos") ||
-    s.includes("conclu")
-  const hasUpdate = !!updatedDate && !!updatedTime && updatedTime !== "00:00:00"
-  return publishedLike || hasUpdate
+/**
+ * Detecta se a roteirização já foi publicada.
+ * Regra: SOMENTE o status "published" (em RTG_ORD_STATUS) conta como publicado.
+ * Qualquer outro status (processing, draft, etc.) é considerado EM ANDAMENTO.
+ */
+function isPublished(statusRaw: string): boolean {
+  return (statusRaw || "").trim().toLowerCase() === "published"
 }
 
 /** Hash determinístico simples (para a simulação de andamento no preview/mock). */
@@ -333,7 +324,7 @@ export function buildFaro(
     // pertence à semana esperada (evita puxar coletas de semanas passadas).
     if (tipo === "W-1" && created < dateInicio && !w1Expected.has(collectionDate)) continue
 
-    let published = isPublished(r.RTG_ORD_STATUS, r.updated_date, r.updated_time)
+    let published = isPublished(r.RTG_ORD_STATUS)
     // Simulação de andamento apenas no preview/mock.
     if (fonte === "mock") {
       published = hashString(`${hub}|${collectionDate}|${r.created_time}`) % 100 >= 40
