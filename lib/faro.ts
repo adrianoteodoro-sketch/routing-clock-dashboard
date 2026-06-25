@@ -57,10 +57,16 @@ export interface FaroData {
 
 const TIPOS_ORDER: TipoRoteirizacao[] = ["W-1", "D-1", "D-2"]
 
-/** HUBs elegíveis ao tipo D-2 (longa distância), conforme exceções configuradas. */
+/** HUBs elegíveis ao tipo D-2 (exceção), conforme exceções configuradas. */
 const D2_HUBS = new Set(
   DEADLINE_EXCEPTIONS.flatMap((e) => (e.hubs === "*" ? ALL_HUBS : e.hubs)),
 )
+
+/**
+ * HUBs que hoje só são roteirizados em D-2 (exceção). Não devem aparecer como
+ * esperados/pendentes nas listas de W-1 ou D-1.
+ */
+const D2_ONLY_HUBS = new Set(["BRXMG2", "BRXSP11", "BRXMG3", "BRXBA1", "BRXPE1", "BRXCE1", "BRXPR3"])
 
 // --- Helpers de data (YYYY-MM-DD) para calcular os dias de coleta esperados ---
 function parseISO(s: string): Date {
@@ -196,7 +202,8 @@ export function buildFaro(
 
     const collectionDate = r.RTG_ORD_PLAN_LOCAL_DATE || ""
     const colDate = new Date(`${collectionDate || r.created_date}T00:00:00`)
-    const tipo = getTipoRoteirizacao(hub, colDate, r.planification_type)
+    // HUBs que hoje só roteirizam em D-2 (exceção) são sempre classificados como D-2.
+    const tipo = D2_ONLY_HUBS.has(hub) ? "D-2" : getTipoRoteirizacao(hub, colDate, r.planification_type)
     if (tiposSel && !tiposSel.includes(tipo)) continue
 
     let published = isPublished(r.RTG_ORD_STATUS, r.updated_date, r.updated_time)
@@ -257,7 +264,9 @@ export function buildFaro(
 
     if (!skipTipo) {
       // Universo de HUBs esperados para o tipo (D-2 só vale para HUBs de longa distância).
-      const universe = (tipo === "D-2" ? [...D2_HUBS] : ALL_HUBS).filter(hubEligible)
+      const universe = (
+        tipo === "D-2" ? [...D2_HUBS] : ALL_HUBS.filter((h) => !D2_ONLY_HUBS.has(h))
+      ).filter(hubEligible)
       for (const hub of universe) {
         const existing = hubMap.get(hub)
         if (existing) {

@@ -21,7 +21,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 const TIPO_INFO: Record<string, { label: string; descricao: string; accent: string }> = {
   "W-1": { label: "W-1", descricao: "Tático (semana anterior)", accent: "bg-primary" },
   "D-1": { label: "D-1", descricao: "Replanejamento (D-1)", accent: "bg-chart-2" },
-  "D-2": { label: "D-2", descricao: "Longa distância (D-2)", accent: "bg-chart-4" },
+  "D-2": { label: "D-2", descricao: "Exceção (D-2)", accent: "bg-chart-4" },
 }
 
 function todayISO(): string {
