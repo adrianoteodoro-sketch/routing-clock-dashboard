@@ -93,6 +93,15 @@ function mondayOf(d: Date): Date {
   const diff = dow === 0 ? -6 : 1 - dow
   return addDaysLocal(d, diff)
 }
+/** Dia útil anterior (pula sábado/domingo). Ex.: segunda -> sexta. */
+function prevBusinessDayISO(iso: string): string {
+  let d = parseISO(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  do {
+    d = addDaysLocal(d, -1)
+  } while (d.getDay() === 0 || d.getDay() === 6)
+  return fmtISO(d)
+}
 
 /**
  * Dias de coleta esperados (YYYY-MM-DD) para um tipo, dado o dia de roteirização.
@@ -193,7 +202,6 @@ export function buildFaro(
   // `dateFim` o fim. Sem fim => dia único. Comparação lexical de "YYYY-MM-DD".
   const dateInicio = date
   const dateFim = filters?.dateFim || date
-  const inRoutingRange = (d: string) => !!d && d >= dateInicio && d <= dateFim
 
   // Intervalo de DATA DA COLETA (RTG_ORD_PLAN_LOCAL_DATE). Vazio = sem filtro.
   const colInicio = filters?.colInicio || ""
@@ -209,13 +217,23 @@ export function buildFaro(
   // e sem filtro de data de coleta; caso contrário, mostramos apenas o que existe.
   const computePendentes = dateInicio === dateFim && !hasCollectionFilter
 
+  // Lookback do W-1: roteirizações semanais costumam ser publicadas no(s) dia(s)
+  // anterior(es) ao dia monitorado. Para não marcar como pendente/faltante uma
+  // coleta da semana esperada que já foi roteirizada na véspera, ampliamos a janela
+  // de DATA DA ROTEIRIZAÇÃO do W-1 até o dia útil anterior — mas só contamos essas
+  // roteirizações da véspera quando a coleta pertence à semana esperada do W-1.
+  // Aplicado apenas no modo de dia único (sem intervalo/filtro de coleta).
+  const applyW1Lookback = computePendentes
+  const w1RoutingStart = applyW1Lookback ? prevBusinessDayISO(dateInicio) : dateInicio
+  const w1Expected = new Set(expectedCollectionDates("W-1", date))
+
   // Mapa tipo -> hub -> FaroHub
   const tipoMap = new Map<TipoRoteirizacao, Map<string, FaroHub>>()
   for (const t of TIPOS_ORDER) tipoMap.set(t, new Map())
 
   for (const r of rows) {
-    // Filtra pelas roteirizações iniciadas dentro do intervalo de roteirização.
-    if (!inRoutingRange(r.created_date || "")) continue
+    const created = r.created_date || ""
+    if (!created) continue
     const hub = (r.SHP_FACILITY_ID || "").trim()
     if (!hub) continue
     if (isDeactivatedHub(hub)) continue // HUB desativado: fora do acompanhamento
@@ -238,6 +256,14 @@ export function buildFaro(
         ? "W-1"
         : "D-1"
     if (tiposSel && !tiposSel.includes(tipo)) continue
+
+    // Janela de DATA DA ROTEIRIZAÇÃO. O W-1 admite roteirizações do dia útil
+    // anterior; as demais respeitam o intervalo padrão [dateInicio, dateFim].
+    const lower = tipo === "W-1" ? w1RoutingStart : dateInicio
+    if (created < lower || created > dateFim) continue
+    // Roteirizações do W-1 anteriores ao dia monitorado só contam quando a coleta
+    // pertence à semana esperada (evita puxar coletas de semanas passadas).
+    if (tipo === "W-1" && created < dateInicio && !w1Expected.has(collectionDate)) continue
 
     let published = isPublished(r.RTG_ORD_STATUS, r.updated_date, r.updated_time)
     // Simulação de andamento apenas no preview/mock.
