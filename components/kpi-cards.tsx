@@ -8,7 +8,8 @@ function formatNumber(n: number): string {
 }
 
 // 1 casa decimal, mas sem ".0" quando for número inteiro. Ex.: 96.8 -> "96.8", 100 -> "100".
-function formatDecimal(n: number): string {
+function formatDecimal(n: number | undefined | null): string {
+  if (typeof n !== "number" || Number.isNaN(n)) return "—"
   return Number.isInteger(n) ? String(n) : n.toFixed(1)
 }
 
@@ -102,7 +103,8 @@ export function KpiCards({
                 return (
                   <div key={tipo} className="flex flex-wrap items-center gap-1.5">
                     {dias.map((d) => {
-                      const ok = d.performance >= d.meta
+                      const hasPerf = typeof d.performance === "number" && !Number.isNaN(d.performance)
+                      const ok = hasPerf && d.performance >= (d.meta ?? 0)
                       return (
                         <span
                           key={`${d.tipo}-${d.diaSemana}`}
@@ -112,9 +114,11 @@ export function KpiCards({
                           }`}
                         >
                           {d.tipo} {d.diaSemana}
-                          <span className={`text-[11px] font-bold ${ok ? "text-success" : "text-danger"}`}>
-                            {formatDecimal(d.performance)}%
-                          </span>
+                          {hasPerf && (
+                            <span className={`text-[11px] font-bold ${ok ? "text-success" : "text-danger"}`}>
+                              {formatDecimal(d.performance)}%
+                            </span>
+                          )}
                         </span>
                       )
                     })}
