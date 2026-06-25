@@ -18,6 +18,7 @@ export interface FaroOrder {
   startedAt: string // ISO - início da roteirização (created_date + created_time)
   publishedAt: string // ISO - publicação (updated) ou "" se ainda não publicada
   timeToUpdate: string // HH:MM - duração da roteirização (coluna time_to_update)
+  updatedTime: string // HH:MM - horário de atualização (coluna updated_time)
   status: FaroStatus
   statusRaw: string // valor cru de RTG_ORD_STATUS
   /** True quando o roteiro foi feito fora da meta (ex.: W-1 de seg/ter roteirizado na quinta). */
@@ -342,6 +343,7 @@ export function buildFaro(
       startedAt: toIso(r.created_date, r.created_time),
       publishedAt: published ? toIso(r.updated_date || r.created_date, r.updated_time) : "",
       timeToUpdate: (r.time_to_update || "").trim(),
+      updatedTime: (r.updated_time || "").trim().slice(0, 5),
       status: published ? "publicada" : "iniciada",
       statusRaw: r.RTG_ORD_STATUS || "",
       // Fora da meta: só faz sentido no W-1 e no modo de dia único.

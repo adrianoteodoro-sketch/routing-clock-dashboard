@@ -468,11 +468,11 @@ function OrderChip({ order }: { order: FaroOrder }) {
     : publicada
       ? "bg-success/12 text-success border-success/30"
       : "bg-warning/15 text-warning border-warning/30"
-  // Exibe a duração da roteirização (coluna time_to_update), não o relógio de publicação.
-  const time = order.timeToUpdate || "--:--"
+  // Exibe o horário de atualização da roteirização (coluna updated_time).
+  const time = order.updatedTime || "--:--"
   const baseTitle = publicada
-    ? `Publicada · duração ${time} · coleta ${formatDayShort(order.collectionDate)}`
-    : `Em andamento · duração ${time} · coleta ${formatDayShort(order.collectionDate)}`
+    ? `Publicada · atualizada ${time} · coleta ${formatDayShort(order.collectionDate)}`
+    : `Em andamento · atualizada ${time} · coleta ${formatDayShort(order.collectionDate)}`
   const title = order.late ? `${baseTitle} · roteirizado fora da meta` : baseTitle
   return (
     <span
