@@ -13,6 +13,7 @@ import {
   Building2,
 } from "lucide-react"
 import type { FaroData, FaroHub, FaroOrder, FaroTipo } from "@/lib/faro"
+import type { Filters } from "@/lib/types"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -80,11 +81,26 @@ export function FaroBoard() {
   )
 }
 
-export function FaroContent({ embedded = false }: { embedded?: boolean }) {
+export function FaroContent({ embedded = false, filters }: { embedded?: boolean; filters?: Filters }) {
   const [date, setDate] = useState<string>(todayISO())
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  const query = `/api/faro?date=${date}`
+  // Quando recebe os filtros da barra lateral, o dia monitorado vem da
+  // "Data da Roteirização" selecionada (início do período), e os filtros de
+  // Regional/HUB/Tipo também são aplicados. Caso contrário (página standalone),
+  // usa o seletor de dia próprio.
+  const effectiveDate = filters?.roteirizacaoInicio || date
+
+  const query = useMemo(() => {
+    const sp = new URLSearchParams({ date: effectiveDate })
+    if (filters) {
+      sp.set("regional", filters.regional)
+      sp.set("hub", filters.hub)
+      sp.set("tipo", filters.tipo)
+    }
+    return `/api/faro?${sp.toString()}`
+  }, [effectiveDate, filters])
+
   const { data, isLoading, isValidating, mutate } = useSWR<FaroData>(query, fetcher, {
     keepPreviousData: true,
     revalidateOnFocus: false,
@@ -125,16 +141,18 @@ export function FaroContent({ embedded = false }: { embedded?: boolean }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <span className="text-muted-foreground">Dia da Roteirização</span>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value || todayISO())}
-              aria-label="Dia da roteirização monitorado"
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </label>
+          {!filters && (
+            <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <span className="text-muted-foreground">Dia da Roteirização</span>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value || todayISO())}
+                aria-label="Dia da roteirização monitorado"
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </label>
+          )}
           <button
             onClick={() => mutate()}
             disabled={isValidating}
@@ -180,7 +198,7 @@ export function FaroContent({ embedded = false }: { embedded?: boolean }) {
         </div>
       ) : totals.total === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card py-20 text-center text-muted-foreground">
-          Nenhuma roteirização iniciada em {formatDayShort(date)}.
+          Nenhuma roteirização iniciada em {formatDayShort(effectiveDate)}.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

@@ -222,7 +222,7 @@ export function RoutingClockDashboard() {
           </div>
 
           {tab === "acompanhamento" ? (
-            <FaroContent embedded />
+            <FaroContent embedded filters={filters} />
           ) : isLoading || !data ? (
             <div className="flex h-[60vh] items-center justify-center">
               <div className="flex flex-col items-center gap-3 text-muted-foreground">

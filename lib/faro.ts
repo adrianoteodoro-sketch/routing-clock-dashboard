@@ -94,11 +94,31 @@ function hashString(value: string): number {
  * dia são marcadas como "em andamento" de forma determinística quando a fonte é
  * mock. Em produção (planilha real), o status vem direto de RTG_ORD_STATUS.
  */
+/** Converte um valor de filtro ("TODAS"/"TODOS", "" ou "A,B") em lista; null = sem filtro. */
+function parseFilterList(value: string | undefined, allLabel: string): string[] | null {
+  if (!value || value === allLabel) return null
+  return value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+export interface FaroFilters {
+  regional?: string
+  hub?: string
+  tipo?: string
+}
+
 export function buildFaro(
   rows: RawRoutingOrder[],
   date: string,
   fonte: "bigquery" | "sheets" | "mock",
+  filters?: FaroFilters,
 ): FaroData {
+  const regionaisSel = parseFilterList(filters?.regional, "TODAS")
+  const hubsSel = parseFilterList(filters?.hub, "TODOS")
+  const tiposSel = parseFilterList(filters?.tipo, "TODOS")
+
   // Mapa tipo -> hub -> FaroHub
   const tipoMap = new Map<TipoRoteirizacao, Map<string, FaroHub>>()
   for (const t of TIPOS_ORDER) tipoMap.set(t, new Map())
@@ -108,12 +128,15 @@ export function buildFaro(
     if ((r.created_date || "") !== date) continue
     const hub = (r.SHP_FACILITY_ID || "").trim()
     if (!hub) continue
+    if (hubsSel && !hubsSel.includes(hub)) continue
     const regional = r.Regional || regionalForHub(hub)
     if (regional === "N/D") continue
+    if (regionaisSel && !regionaisSel.includes(regional)) continue
 
     const collectionDate = r.RTG_ORD_PLAN_LOCAL_DATE || ""
     const colDate = new Date(`${collectionDate || r.created_date}T00:00:00`)
     const tipo = getTipoRoteirizacao(hub, colDate, r.planification_type)
+    if (tiposSel && !tiposSel.includes(tipo)) continue
 
     let published = isPublished(r.RTG_ORD_STATUS, r.updated_date, r.updated_time)
     // Simulação de andamento apenas no preview/mock.
