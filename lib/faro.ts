@@ -171,6 +171,12 @@ export interface FaroFilters {
   regional?: string
   hub?: string
   tipo?: string
+  /** Fim do intervalo de DATA DA ROTEIRIZAÇÃO (created_date). Se vazio, usa o dia único `date`. */
+  dateFim?: string
+  /** Início do intervalo de DATA DA COLETA (RTG_ORD_PLAN_LOCAL_DATE). Vazio = sem filtro. */
+  colInicio?: string
+  /** Fim do intervalo de DATA DA COLETA. Vazio = sem filtro. */
+  colFim?: string
 }
 
 export function buildFaro(
@@ -183,13 +189,33 @@ export function buildFaro(
   const hubsSel = parseFilterList(filters?.hub, "TODOS")
   const tiposSel = parseFilterList(filters?.tipo, "TODOS")
 
+  // Intervalo de DATA DA ROTEIRIZAÇÃO (created_date). `date` é o início;
+  // `dateFim` o fim. Sem fim => dia único. Comparação lexical de "YYYY-MM-DD".
+  const dateInicio = date
+  const dateFim = filters?.dateFim || date
+  const inRoutingRange = (d: string) => !!d && d >= dateInicio && d <= dateFim
+
+  // Intervalo de DATA DA COLETA (RTG_ORD_PLAN_LOCAL_DATE). Vazio = sem filtro.
+  const colInicio = filters?.colInicio || ""
+  const colFim = filters?.colFim || ""
+  const hasCollectionFilter = !!colInicio || !!colFim
+  const inCollectionRange = (d: string) => {
+    if (colInicio && (!d || d < colInicio)) return false
+    if (colFim && (!d || d > colFim)) return false
+    return true
+  }
+
+  // Pendentes / datas faltantes só fazem sentido para um único dia de roteirização
+  // e sem filtro de data de coleta; caso contrário, mostramos apenas o que existe.
+  const computePendentes = dateInicio === dateFim && !hasCollectionFilter
+
   // Mapa tipo -> hub -> FaroHub
   const tipoMap = new Map<TipoRoteirizacao, Map<string, FaroHub>>()
   for (const t of TIPOS_ORDER) tipoMap.set(t, new Map())
 
   for (const r of rows) {
-    // Filtra pelas roteirizações iniciadas no dia monitorado.
-    if ((r.created_date || "") !== date) continue
+    // Filtra pelas roteirizações iniciadas dentro do intervalo de roteirização.
+    if (!inRoutingRange(r.created_date || "")) continue
     const hub = (r.SHP_FACILITY_ID || "").trim()
     if (!hub) continue
     if (isDeactivatedHub(hub)) continue // HUB desativado: fora do acompanhamento
@@ -199,6 +225,8 @@ export function buildFaro(
     if (regionaisSel && !regionaisSel.includes(regional)) continue
 
     const collectionDate = r.RTG_ORD_PLAN_LOCAL_DATE || ""
+    // Filtra pela DATA DA COLETA quando o intervalo está definido.
+    if (!inCollectionRange(collectionDate)) continue
     // Classificação do acompanhamento:
     //  - HUBs de exceção (lista fixa) sempre D-2.
     //  - Demais HUBs pelo tipo de planejamento: tactical = W-1 (semanal), replanning = D-1.
@@ -267,7 +295,7 @@ export function buildFaro(
     const expDates = expectedCollectionDates(tipo, date)
     const skipTipo = tiposSel && !tiposSel.includes(tipo)
 
-    if (!skipTipo) {
+    if (!skipTipo && computePendentes) {
       // Universo de HUBs esperados para o tipo (D-2 só vale para os HUBs de exceção).
       const universe = (
         tipo === "D-2" ? [...D2_ONLY_HUBS] : ALL_HUBS.filter((h) => !D2_ONLY_HUBS.has(h))

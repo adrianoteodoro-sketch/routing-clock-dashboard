@@ -17,12 +17,15 @@ function todayISO(): string {
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
   const date = sp.get("date") || todayISO()
+  const dateFim = sp.get("dateFim") || ""
+  const colInicio = sp.get("colInicio") || ""
+  const colFim = sp.get("colFim") || ""
   const regional = sp.get("regional") || "TODAS"
   const hub = sp.get("hub") || "TODOS"
   const tipo = sp.get("tipo") || "TODOS"
   try {
     const { rows, fonte } = await fetchRoutingOrders()
-    const data = buildFaro(rows, date, fonte, { regional, hub, tipo })
+    const data = buildFaro(rows, date, fonte, { regional, hub, tipo, dateFim, colInicio, colFim })
     return NextResponse.json(data)
   } catch (error) {
     console.log("[v0] Erro na API faro:", (error as Error).message)

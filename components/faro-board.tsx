@@ -86,10 +86,10 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
   const [date, setDate] = useState<string>(todayISO())
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  // Quando recebe os filtros da barra lateral, o dia monitorado vem da
-  // "Data da Roteirização" selecionada (início do período), e os filtros de
-  // Regional/HUB/Tipo também são aplicados. Caso contrário (página standalone),
-  // usa o seletor de dia próprio.
+  // Quando recebe os filtros da barra lateral, a "Data da Roteirização" (início do
+  // período) define o dia monitorado, e o fim do período, a "Data da Coleta" e os
+  // filtros de Regional/HUB/Tipo também são aplicados. Caso contrário (página
+  // standalone), usa o seletor de dia próprio.
   const effectiveDate = filters?.roteirizacaoInicio || date
 
   const query = useMemo(() => {
@@ -98,6 +98,10 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
       sp.set("regional", filters.regional)
       sp.set("hub", filters.hub)
       sp.set("tipo", filters.tipo)
+      // Intervalo de data da roteirização (fim) e de data da coleta.
+      if (filters.roteirizacaoFim) sp.set("dateFim", filters.roteirizacaoFim)
+      if (filters.rotInicio) sp.set("colInicio", filters.rotInicio)
+      if (filters.rotFim) sp.set("colFim", filters.rotFim)
     }
     return `/api/faro?${sp.toString()}`
   }, [effectiveDate, filters])
