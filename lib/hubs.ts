@@ -28,8 +28,20 @@ export const HUB_TO_REGIONAL: Record<string, string> = {
   BRXRS1: "SUL",
 }
 
-/** Lista de HUBs (facilities) conhecidos. */
-export const ALL_HUBS = Object.keys(HUB_TO_REGIONAL)
+/**
+ * HUBs desativados: continuam mapeados acima para preservar o histórico do
+ * routing clock, mas são removidos dos filtros, do universo de HUBs esperados
+ * e da tela de Acompanhamento.
+ */
+export const DEACTIVATED_HUBS = new Set<string>(["BRXSP6"])
+
+/** True quando o HUB foi desativado e não deve aparecer nos filtros/páginas atuais. */
+export function isDeactivatedHub(hub: string): boolean {
+  return DEACTIVATED_HUBS.has(hub)
+}
+
+/** Lista de HUBs (facilities) ativos (exclui os desativados). */
+export const ALL_HUBS = Object.keys(HUB_TO_REGIONAL).filter((h) => !DEACTIVATED_HUBS.has(h))
 
 /** Lista única de regionais. */
 export const ALL_REGIONAIS = [...new Set(Object.values(HUB_TO_REGIONAL))].sort()

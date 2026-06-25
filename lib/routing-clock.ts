@@ -20,7 +20,7 @@ import type {
   TipoRoteirizacao,
   WaterfallPonto,
 } from "./types"
-import { regionalForHub } from "./hubs"
+import { regionalForHub, isDeactivatedHub } from "./hubs"
 import { DEADLINE_EXCEPTIONS } from "./routing-clock-exceptions"
 
 export const META_PERFORMANCE = 95 // % das operações entregues dentro do horário
@@ -145,7 +145,7 @@ function getExceptionDeadline(
  *  - tactical -> "W-1"
  *  - replanning padrão -> "D-1"
  */
-function getTipoRoteirizacao(
+export function getTipoRoteirizacao(
   facilityId: string,
   collectionDate: Date,
   type: "tactical" | "replanning",
@@ -159,8 +159,7 @@ function getTipoRoteirizacao(
  * da data de coleta e do tipo de planificação.
  *
  * W-1 (tactical):
- *  - Coleta segunda (próxima semana) -> quarta da semana vigente 18:00
- *  - Coleta terça (próxima semana) -> quinta da semana anterior 18:00
+ *  - Coleta segunda ou terça (próxima semana) -> quarta da semana vigente 18:00
  *  - Coleta qua/qui/sex -> quinta da semana vigente 18:00
  *  - Coleta sábado (excepcional) -> quarta da mesma semana 18:00
  * D-1 (replanning): entrega no dia útil anterior à coleta às 17:00
@@ -184,16 +183,12 @@ export function getDeadline(
   if (type === "tactical") {
     // Semana vigente = semana anterior à coleta
     const prevMonday = addDays(monday, -7)
-    if (dow === 1) {
-      // segunda -> quarta da semana vigente 18:00
+    if (dow === 1 || dow === 2) {
+      // segunda ou terça (próxima semana) -> quarta da semana vigente 18:00
       return atHour(addDays(prevMonday, 2), 18)
     }
-    if (dow === 2) {
-      // terça -> quinta da semana anterior 18:00
-      return atHour(addDays(prevMonday, 3), 18)
-    }
     if (dow === 3 || dow === 4 || dow === 5) {
-      // quinta da semana vigente 18:00
+      // quarta, quinta ou sexta -> quinta da semana vigente 18:00
       return atHour(addDays(prevMonday, 3), 18)
     }
     if (dow === 6) {
@@ -863,7 +858,7 @@ export function buildDashboard(
         orders
           .filter((o) => filters.regional === "TODAS" || o.regional === filters.regional)
           .map((o) => o.facilityId),
-      ),
+      ).filter((h) => !isDeactivatedHub(h)),
       meses: chronoLabels("month"),
       semanas: chronoLabels("week"),
       maxRoutingDate: orders.reduce((max, o) => (o.routingDate > max ? o.routingDate : max), ""),

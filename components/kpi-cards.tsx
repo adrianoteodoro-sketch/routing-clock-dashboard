@@ -98,6 +98,7 @@ export function KpiCards({
             </div>
             <div className="flex flex-col gap-2">
               {["W-1", "D-1", "D-2"].map((tipo) => {
+                // Exibe todas as combinações roteirizadas, inclusive fora da meta e zeradas (0%).
                 const dias = diasRoteirizados.filter((d) => d.tipo === tipo)
                 if (dias.length === 0) return null
                 return (

@@ -55,7 +55,7 @@ export function DashboardHeader({ onRefresh, refreshing, lastUpdated }: Dashboar
             <button
               onClick={onRefresh}
               disabled={refreshing}
-              className="inline-flex items-center gap-2 self-start rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-accent disabled:opacity-60 sm:self-auto"
+              className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-accent disabled:opacity-60"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               Atualizar Dados
