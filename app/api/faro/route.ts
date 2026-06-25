@@ -23,9 +23,10 @@ export async function GET(req: NextRequest) {
   const regional = sp.get("regional") || "TODAS"
   const hub = sp.get("hub") || "TODOS"
   const tipo = sp.get("tipo") || "TODOS"
+  const semReplan = sp.get("semReplan") || ""
   try {
     const { rows, fonte } = await fetchRoutingOrders()
-    const data = buildFaro(rows, date, fonte, { regional, hub, tipo, dateFim, colInicio, colFim })
+    const data = buildFaro(rows, date, fonte, { regional, hub, tipo, dateFim, colInicio, colFim, semReplan })
     return NextResponse.json(data)
   } catch (error) {
     console.log("[v0] Erro na API faro:", (error as Error).message)

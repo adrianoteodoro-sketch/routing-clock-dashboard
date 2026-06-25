@@ -13,6 +13,7 @@ import {
   CircleAlert,
   LoaderCircle,
   Building2,
+  SlidersHorizontal,
 } from "lucide-react"
 import type { FaroData, FaroHub, FaroOrder, FaroTipo } from "@/lib/faro"
 import type { Filters } from "@/lib/types"
@@ -83,9 +84,37 @@ export function FaroBoard() {
   )
 }
 
+const SEM_REPLAN_KEY = "faro:semReplan"
+
 export function FaroContent({ embedded = false, filters }: { embedded?: boolean; filters?: Filters }) {
   const [date, setDate] = useState<string>(todayISO())
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  // HUBs SEM replan (D-1). Default = todos COM replan (conjunto vazio). Persiste no navegador.
+  const [semReplan, setSemReplan] = useState<Set<string>>(new Set())
+  const [showReplan, setShowReplan] = useState(false)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SEM_REPLAN_KEY)
+      if (raw) setSemReplan(new Set(JSON.parse(raw) as string[]))
+    } catch {
+      // ignora
+    }
+  }, [])
+
+  const toggleReplan = (hub: string) => {
+    setSemReplan((prev) => {
+      const next = new Set(prev)
+      if (next.has(hub)) next.delete(hub)
+      else next.add(hub)
+      try {
+        localStorage.setItem(SEM_REPLAN_KEY, JSON.stringify([...next]))
+      } catch {
+        // ignora
+      }
+      return next
+    })
+  }
 
   // Quando recebe os filtros da barra lateral, a "Data da Roteirização" (início do
   // período) define o dia monitorado, e o fim do período, a "Data da Coleta" e os
@@ -104,8 +133,9 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
       if (filters.rotInicio) sp.set("colInicio", filters.rotInicio)
       if (filters.rotFim) sp.set("colFim", filters.rotFim)
     }
+    if (semReplan.size > 0) sp.set("semReplan", [...semReplan].join(","))
     return `/api/faro?${sp.toString()}`
-  }, [effectiveDate, filters])
+  }, [effectiveDate, filters, semReplan])
 
   const { data, isLoading, isValidating, mutate } = useSWR<FaroData>(query, fetcher, {
     keepPreviousData: true,
@@ -122,11 +152,14 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
       total: data?.total ?? 0,
       iniciadas: data?.iniciadas ?? 0,
       publicadas: data?.publicadas ?? 0,
+      necessarias: data?.necessarias ?? 0,
+      concluidas: data?.concluidas ?? 0,
     }),
     [data],
   )
 
-  const pct = totals.total > 0 ? Math.round((totals.publicadas / totals.total) * 100) : 0
+  // Percentual de conclusão = roteiros necessários concluídos / total necessário.
+  const pct = totals.necessarias > 0 ? Math.round((totals.concluidas / totals.necessarias) * 100) : 0
 
   // Tipos visíveis: quando há filtro de tipo, mostra apenas os selecionados.
   const tipoFilter =
@@ -137,6 +170,16 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
   const hasAnyHub = visibleTipos.some((t) => t.hubs.length > 0)
   // Quando há apenas um tipo selecionado, usa layout paisagem (HUBs em grade horizontal).
   const landscape = visibleTipos.length === 1
+
+  // HUBs candidatos a replan (D-1): todos que aparecem nos tipos W-1/D-1 (exclui exceção D-2).
+  const replanHubs = useMemo(() => {
+    const set = new Set<string>()
+    for (const t of data?.tipos ?? []) {
+      if (t.tipo === "D-2") continue
+      for (const h of t.hubs) set.add(h.hub)
+    }
+    return [...set].sort()
+  }, [data])
 
   return (
     <div className={embedded ? "flex flex-col gap-6" : "mx-auto max-w-[1600px] px-6 py-6"}>
@@ -170,6 +213,14 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
             </label>
           )}
           <button
+            onClick={() => setShowReplan((v) => !v)}
+            className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-accent"
+            aria-expanded={showReplan}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Replan (D-1){semReplan.size > 0 ? ` · ${semReplan.size} sem` : ""}
+          </button>
+          <button
             onClick={() => mutate()}
             disabled={isValidating}
             className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-accent disabled:opacity-60"
@@ -179,6 +230,15 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
           </button>
         </div>
       </div>
+
+      {showReplan && (
+        <ReplanPanel
+          hubs={replanHubs}
+          semReplan={semReplan}
+          onToggle={toggleReplan}
+          onClose={() => setShowReplan(false)}
+        />
+      )}
 
       {/* Resumo geral */}
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -266,7 +326,8 @@ function SummaryCard({
 
 function TipoColumn({ tipo, landscape = false }: { tipo: FaroTipo; landscape?: boolean }) {
   const info = TIPO_INFO[tipo.tipo] ?? { label: tipo.tipo, descricao: "", accent: "bg-primary" }
-  const pct = tipo.total > 0 ? Math.round((tipo.publicadas / tipo.total) * 100) : 0
+  // Percentual por tipo = roteiros necessários concluídos / total necessário.
+  const pct = tipo.necessarias > 0 ? Math.round((tipo.concluidas / tipo.necessarias) * 100) : 0
   return (
     <section className="flex flex-col rounded-xl border border-border bg-secondary/40">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
@@ -277,7 +338,7 @@ function TipoColumn({ tipo, landscape = false }: { tipo: FaroTipo; landscape?: b
           <div>
             <p className="text-xs font-semibold text-foreground">{info.descricao}</p>
             <p className="text-[11px] text-muted-foreground">
-              {tipo.publicadas}/{tipo.total} publicadas · {pct}%
+              {tipo.concluidas}/{tipo.necessarias} concluídos · {pct}%
             </p>
           </div>
         </div>
@@ -316,7 +377,9 @@ function TipoColumn({ tipo, landscape = false }: { tipo: FaroTipo; landscape?: b
 
 function HubCard({ hub }: { hub: FaroHub }) {
   const pendente = hub.pendente || hub.total === 0
-  const hasOverdue = hub.overdueDates.length > 0
+  const lateCount = hub.orders.filter((o) => o.late).length
+  // "Atrasado" inclui coletas faltantes fora do prazo E roteiros feitos fora da meta.
+  const hasOverdue = hub.overdueDates.length > 0 || lateCount > 0
   const allDone = !pendente && hub.iniciadas === 0
   const borderClass = hasOverdue
     ? "border-destructive/50 bg-destructive/5"
@@ -338,7 +401,7 @@ function HubCard({ hub }: { hub: FaroHub }) {
         {hasOverdue ? (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-destructive">
             <CircleAlert className="h-3.5 w-3.5" />
-            {hub.overdueDates.length} atrasado{hub.overdueDates.length > 1 ? "s" : ""}
+            {hub.overdueDates.length + lateCount} atrasado{hub.overdueDates.length + lateCount > 1 ? "s" : ""}
           </span>
         ) : pendente ? (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
@@ -406,21 +469,88 @@ function MissingChip({ collectionDate }: { collectionDate: string }) {
 
 function OrderChip({ order }: { order: FaroOrder }) {
   const publicada = order.status === "publicada"
-  const cls = publicada
-    ? "bg-success/12 text-success border-success/30"
-    : "bg-warning/15 text-warning border-warning/30"
+  // Roteiro feito fora da meta (ex.: W-1 seg/ter roteirizado na quinta) destaca em vermelho.
+  const cls = order.late
+    ? "bg-destructive/10 text-destructive border-destructive/40"
+    : publicada
+      ? "bg-success/12 text-success border-success/30"
+      : "bg-warning/15 text-warning border-warning/30"
   const time = publicada ? formatTime(order.publishedAt) : formatTime(order.startedAt)
-  const title = publicada
+  const baseTitle = publicada
     ? `Publicada às ${formatTime(order.publishedAt)} · coleta ${formatDayShort(order.collectionDate)}`
     : `Iniciada às ${formatTime(order.startedAt)} · coleta ${formatDayShort(order.collectionDate)}`
+  const title = order.late ? `${baseTitle} · roteirizado fora da meta` : baseTitle
   return (
     <span
       title={title}
       className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold ${cls}`}
     >
-      {publicada ? <CircleCheck className="h-3 w-3" /> : <LoaderCircle className="h-3 w-3 animate-spin" />}
+      {order.late ? (
+        <CircleAlert className="h-3 w-3" />
+      ) : publicada ? (
+        <CircleCheck className="h-3 w-3" />
+      ) : (
+        <LoaderCircle className="h-3 w-3 animate-spin" />
+      )}
       {formatDayShort(order.collectionDate)}
       <span className="opacity-70">{time}</span>
     </span>
+  )
+}
+
+function ReplanPanel({
+  hubs,
+  semReplan,
+  onToggle,
+  onClose,
+}: {
+  hubs: string[]
+  semReplan: Set<string>
+  onToggle: (hub: string) => void
+  onClose: () => void
+}) {
+  return (
+    <section className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-bold text-foreground">Replan (D-1) por HUB</h2>
+          <p className="text-[11px] text-muted-foreground">
+            Marque os HUBs que têm replan (D-1). HUBs desmarcados não entram no percentual de conclusão.
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          className="rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary"
+        >
+          Fechar
+        </button>
+      </div>
+      {hubs.length === 0 ? (
+        <p className="py-4 text-center text-xs text-muted-foreground">Nenhum HUB disponível para configurar.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+          {hubs.map((hub) => {
+            const temReplan = !semReplan.has(hub)
+            return (
+              <label
+                key={hub}
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                  temReplan ? "border-border bg-secondary/40 text-foreground" : "border-dashed border-border bg-muted/30 text-muted-foreground"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={temReplan}
+                  onChange={() => onToggle(hub)}
+                  className="h-4 w-4 accent-primary"
+                  aria-label={`${hub} tem replan D-1`}
+                />
+                {hub}
+              </label>
+            )
+          })}
+        </div>
+      )}
+    </section>
   )
 }

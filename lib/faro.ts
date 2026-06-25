@@ -19,6 +19,8 @@ export interface FaroOrder {
   publishedAt: string // ISO - publicação (updated) ou "" se ainda não publicada
   status: FaroStatus
   statusRaw: string // valor cru de RTG_ORD_STATUS
+  /** True quando o roteiro foi feito fora da meta (ex.: W-1 de seg/ter roteirizado na quinta). */
+  late: boolean
 }
 
 export interface FaroHub {
@@ -37,6 +39,10 @@ export interface FaroHub {
    * (ex.: W-1 de segunda/terça não roteirizado até quarta). Exibidas em vermelho.
    */
   overdueDates: string[]
+  /** Roteiros necessários para finalizar o tipo neste HUB (base do percentual). */
+  necessarias: number
+  /** Roteiros necessários já concluídos (publicados). */
+  concluidas: number
 }
 
 export interface FaroTipo {
@@ -46,6 +52,10 @@ export interface FaroTipo {
   iniciadas: number
   publicadas: number
   pendentes: number
+  /** Total de roteiros necessários para finalizar o tipo (base do percentual). */
+  necessarias: number
+  /** Roteiros necessários já concluídos (publicados). */
+  concluidas: number
 }
 
 export interface FaroData {
@@ -56,6 +66,10 @@ export interface FaroData {
   total: number
   iniciadas: number
   publicadas: number
+  /** Total de roteiros necessários (todos os tipos) — base do percentual geral. */
+  necessarias: number
+  /** Roteiros necessários já concluídos (publicados). */
+  concluidas: number
 }
 
 const TIPOS_ORDER: TipoRoteirizacao[] = ["W-1", "D-1", "D-2"]
@@ -150,6 +164,19 @@ function splitW1Missing(dates: string[], monitoredDow: number): { missing: strin
   return { missing, overdue }
 }
 
+/**
+ * Um roteiro do W-1 foi feito fora da meta quando o dia da semana em que foi
+ * roteirizado (created_date) é posterior ao prazo da coleta. Ex.: coleta de
+ * segunda/terça (prazo quarta) roteirizada na quinta-feira.
+ */
+function isW1OrderLate(collectionISO: string, createdISO: string): boolean {
+  if (!collectionISO || !createdISO) return false
+  const createdDow = parseISO(createdISO).getDay()
+  // Considera apenas dias úteis de roteirização (seg-sex) para evitar ruído.
+  if (createdDow === 0 || createdDow === 6) return false
+  return createdDow > w1DeadlineDow(collectionISO)
+}
+
 /** Monta um ISO local a partir de "YYYY-MM-DD" + "HH:MM:SS". */
 function toIso(date: string, time: string): string {
   if (!date) return ""
@@ -216,6 +243,8 @@ export interface FaroFilters {
   colInicio?: string
   /** Fim do intervalo de DATA DA COLETA. Vazio = sem filtro. */
   colFim?: string
+  /** Lista de HUBs SEM replan (D-1). Esses HUBs não contam D-1 no percentual. */
+  semReplan?: string
 }
 
 export function buildFaro(
@@ -227,6 +256,13 @@ export function buildFaro(
   const regionaisSel = parseFilterList(filters?.regional, "TODAS")
   const hubsSel = parseFilterList(filters?.hub, "TODOS")
   const tiposSel = parseFilterList(filters?.tipo, "TODOS")
+  // HUBs SEM replan (D-1): default é COM replan, então essa lista marca exceções.
+  const semReplanSet = new Set(
+    (filters?.semReplan || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  )
 
   // Intervalo de DATA DA ROTEIRIZAÇÃO (created_date). `date` é o início;
   // `dateFim` o fim. Sem fim => dia único. Comparação lexical de "YYYY-MM-DD".
@@ -312,6 +348,8 @@ export function buildFaro(
       publishedAt: published ? toIso(r.updated_date || r.created_date, r.updated_time) : "",
       status: published ? "publicada" : "iniciada",
       statusRaw: r.RTG_ORD_STATUS || "",
+      // Fora da meta: só faz sentido no W-1 e no modo de dia único.
+      late: tipo === "W-1" && computePendentes && isW1OrderLate(collectionDate, created),
     }
 
     const hubMap = tipoMap.get(tipo)!
@@ -332,6 +370,8 @@ export function buildFaro(
         pendente: false,
         missingDates: [],
         overdueDates: [],
+        necessarias: 0,
+        concluidas: 0,
       })
     }
   }
@@ -339,6 +379,8 @@ export function buildFaro(
   let total = 0
   let iniciadas = 0
   let publicadas = 0
+  let necessarias = 0
+  let concluidas = 0
 
   // HUBs elegíveis a cada tipo, respeitando os filtros de Regional/HUB.
   const hubEligible = (hub: string): boolean => {
@@ -355,9 +397,14 @@ export function buildFaro(
     const skipTipo = tiposSel && !tiposSel.includes(tipo)
 
     if (!skipTipo && computePendentes) {
-      // Universo de HUBs esperados para o tipo (D-2 só vale para os HUBs de exceção).
+      // Universo de HUBs esperados para o tipo:
+      //  - D-2: apenas os HUBs de exceção.
+      //  - D-1: todos os HUBs (exceto exceção) que TÊM replan (não estão em semReplan).
+      //  - W-1: todos os HUBs (exceto exceção).
       const universe = (
-        tipo === "D-2" ? [...D2_ONLY_HUBS] : ALL_HUBS.filter((h) => !D2_ONLY_HUBS.has(h))
+        tipo === "D-2"
+          ? [...D2_ONLY_HUBS]
+          : ALL_HUBS.filter((h) => !D2_ONLY_HUBS.has(h) && !(tipo === "D-1" && semReplanSet.has(h)))
       ).filter(hubEligible)
       for (const hub of universe) {
         const existing = hubMap.get(hub)
@@ -386,6 +433,8 @@ export function buildFaro(
             pendente: true,
             missingDates: missing,
             overdueDates: overdue,
+            necessarias: 0,
+            concluidas: 0,
           })
         }
       }
@@ -394,7 +443,10 @@ export function buildFaro(
     // Ordenação: do topo (mais roteiros faltantes/atrasados) para baixo (mais feitos).
     // Atrasados pesam mais para que os HUBs em vermelho fiquem no topo.
     const missingOf = (h: FaroHub) =>
-      h.overdueDates.length * 10 + h.missingDates.length + (h.pendente ? 1 : 0)
+      h.overdueDates.length * 10 +
+      h.orders.filter((o) => o.late).length * 10 +
+      h.missingDates.length +
+      (h.pendente ? 1 : 0)
     const hubs = [...hubMap.values()].sort((a, b) => {
       const fb = missingOf(b) - missingOf(a) // mais faltantes/atrasados primeiro
       if (fb !== 0) return fb
@@ -409,14 +461,52 @@ export function buildFaro(
         return a.collectionDate.localeCompare(b.collectionDate)
       })
     }
+
+    // Progresso (base do percentual): roteiros necessários x concluídos.
+    //  - W-1: cada um dos dias de coleta esperados conta como um roteiro necessário.
+    //  - D-1: 1 roteiro esperado por HUB COM replan (HUBs sem replan não contam).
+    //  - D-2: 1 roteiro esperado por HUB de exceção.
+    // Em modo intervalo/coleta (sem pendentes) usamos a contagem bruta de roteiros.
+    for (const h of hubs) {
+      const noReplan = tipo === "D-1" && semReplanSet.has(h.hub)
+      if (noReplan) {
+        h.necessarias = 0
+        h.concluidas = 0
+      } else if (!computePendentes) {
+        h.necessarias = h.total
+        h.concluidas = h.publicadas
+      } else if (tipo === "W-1") {
+        const pub = new Set(h.orders.filter((o) => o.status === "publicada").map((o) => o.collectionDate))
+        h.necessarias = expDates.length
+        h.concluidas = expDates.filter((d) => pub.has(d)).length
+      } else {
+        // D-1 (com replan) e D-2: 1 roteiro necessário; concluído se houver publicação.
+        h.necessarias = 1
+        h.concluidas = h.publicadas > 0 ? 1 : 0
+      }
+    }
+
     const tTotal = hubs.reduce((acc, h) => acc + h.total, 0)
     const tIni = hubs.reduce((acc, h) => acc + h.iniciadas, 0)
     const tPub = hubs.reduce((acc, h) => acc + h.publicadas, 0)
     const tPend = hubs.filter((h) => h.pendente).length
+    const tNec = hubs.reduce((acc, h) => acc + h.necessarias, 0)
+    const tConc = hubs.reduce((acc, h) => acc + h.concluidas, 0)
     total += tTotal
     iniciadas += tIni
     publicadas += tPub
-    return { tipo, hubs, total: tTotal, iniciadas: tIni, publicadas: tPub, pendentes: tPend }
+    necessarias += tNec
+    concluidas += tConc
+    return {
+      tipo,
+      hubs,
+      total: tTotal,
+      iniciadas: tIni,
+      publicadas: tPub,
+      pendentes: tPend,
+      necessarias: tNec,
+      concluidas: tConc,
+    }
   })
 
   return {
@@ -427,5 +517,7 @@ export function buildFaro(
     total,
     iniciadas,
     publicadas,
+    necessarias,
+    concluidas,
   }
 }
