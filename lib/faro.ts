@@ -17,6 +17,7 @@ export interface FaroOrder {
   collectionDate: string // YYYY-MM-DD - dia da coleta roteirizado
   startedAt: string // ISO - início da roteirização (created_date + created_time)
   publishedAt: string // ISO - publicação (updated) ou "" se ainda não publicada
+  timeToUpdate: string // HH:MM - duração da roteirização (coluna time_to_update)
   status: FaroStatus
   statusRaw: string // valor cru de RTG_ORD_STATUS
   /** True quando o roteiro foi feito fora da meta (ex.: W-1 de seg/ter roteirizado na quinta). */
@@ -297,8 +298,11 @@ export function buildFaro(
     if (!hub) continue
     if (isDeactivatedHub(hub)) continue // HUB desativado: fora do acompanhamento
     if (hubsSel && !hubsSel.includes(hub)) continue
-    const regional = r.Regional || regionalForHub(hub)
-    if (regional === "N/D") continue
+    // O mapa canônico (HUB_TO_REGIONAL) é a fonte de verdade; a planilha/BigQuery
+    // é usada apenas quando o HUB não está mapeado no código.
+    const mapped = regionalForHub(hub)
+    const regional = mapped !== "N/D" ? mapped : r.Regional
+    if (!regional || regional === "N/D") continue
     if (regionaisSel && !regionaisSel.includes(regional)) continue
 
     const collectionDate = r.RTG_ORD_PLAN_LOCAL_DATE || ""
@@ -337,6 +341,7 @@ export function buildFaro(
       collectionDate,
       startedAt: toIso(r.created_date, r.created_time),
       publishedAt: published ? toIso(r.updated_date || r.created_date, r.updated_time) : "",
+      timeToUpdate: (r.time_to_update || "").trim(),
       status: published ? "publicada" : "iniciada",
       statusRaw: r.RTG_ORD_STATUS || "",
       // Fora da meta: só faz sentido no W-1 e no modo de dia único.

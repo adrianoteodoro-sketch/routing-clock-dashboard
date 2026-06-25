@@ -34,13 +34,6 @@ function todayISO(): string {
   return `${y}-${m}-${day}`
 }
 
-function formatTime(iso: string): string {
-  if (!iso) return "--:--"
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return "--:--"
-  return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(d)
-}
-
 function formatDayShort(iso: string): string {
   if (!iso) return "--"
   const [y, m, d] = iso.split("-").map(Number)
@@ -475,10 +468,11 @@ function OrderChip({ order }: { order: FaroOrder }) {
     : publicada
       ? "bg-success/12 text-success border-success/30"
       : "bg-warning/15 text-warning border-warning/30"
-  const time = publicada ? formatTime(order.publishedAt) : formatTime(order.startedAt)
+  // Exibe a duração da roteirização (coluna time_to_update), não o relógio de publicação.
+  const time = order.timeToUpdate || "--:--"
   const baseTitle = publicada
-    ? `Publicada às ${formatTime(order.publishedAt)} · coleta ${formatDayShort(order.collectionDate)}`
-    : `Iniciada às ${formatTime(order.startedAt)} · coleta ${formatDayShort(order.collectionDate)}`
+    ? `Publicada · duração ${time} · coleta ${formatDayShort(order.collectionDate)}`
+    : `Em andamento · duração ${time} · coleta ${formatDayShort(order.collectionDate)}`
   const title = order.late ? `${baseTitle} · roteirizado fora da meta` : baseTitle
   return (
     <span

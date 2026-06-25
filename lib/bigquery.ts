@@ -36,7 +36,7 @@ SELECT
         WHEN 'BRXMG3'   THEN 'SPIO'
         WHEN 'BRXSP11'  THEN 'SPIO'
         WHEN 'BRXPR4'   THEN 'SPIO'
-        WHEN 'CAMPINAS' THEN 'SPIO'
+        WHEN 'CAMPINAS' THEN 'MEGAS'
         WHEN 'BRXSP5'   THEN 'SPIO'
         WHEN 'BRPR01'   THEN 'SUL'
         WHEN 'BRXSC2'   THEN 'SUL'
