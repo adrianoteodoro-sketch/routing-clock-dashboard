@@ -1,6 +1,7 @@
 import type { RawRoutingOrder, TipoRoteirizacao } from "./types"
-import { regionalForHub } from "./hubs"
+import { regionalForHub, ALL_HUBS } from "./hubs"
 import { getTipoRoteirizacao } from "./routing-clock"
+import { DEADLINE_EXCEPTIONS } from "./routing-clock-exceptions"
 
 // ----------------------------------------------------------------------------
 // Faro da Roteirização — acompanhamento em tempo real do andamento das
@@ -29,6 +30,10 @@ export interface FaroHub {
   iniciadas: number
   publicadas: number
   orders: FaroOrder[]
+  /** True quando o HUB é esperado para o tipo mas não iniciou nenhuma roteirização no dia. */
+  pendente: boolean
+  /** Dias de coleta (YYYY-MM-DD) esperados pela regra e ainda não roteirizados neste HUB. */
+  missingDates: string[]
 }
 
 export interface FaroTipo {
@@ -37,6 +42,7 @@ export interface FaroTipo {
   total: number
   iniciadas: number
   publicadas: number
+  pendentes: number
 }
 
 export interface FaroData {
@@ -50,6 +56,61 @@ export interface FaroData {
 }
 
 const TIPOS_ORDER: TipoRoteirizacao[] = ["W-1", "D-1", "D-2"]
+
+/** HUBs elegíveis ao tipo D-2 (longa distância), conforme exceções configuradas. */
+const D2_HUBS = new Set(
+  DEADLINE_EXCEPTIONS.flatMap((e) => (e.hubs === "*" ? ALL_HUBS : e.hubs)),
+)
+
+// --- Helpers de data (YYYY-MM-DD) para calcular os dias de coleta esperados ---
+function parseISO(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number)
+  return new Date(y, (m || 1) - 1, d || 1)
+}
+function fmtISO(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+function addDaysLocal(d: Date, n: number): Date {
+  const c = new Date(d)
+  c.setDate(c.getDate() + n)
+  return c
+}
+/** Avança N dias ÚTEIS (pulando sábado/domingo). */
+function addBusinessDays(d: Date, n: number): Date {
+  let c = new Date(d)
+  let left = n
+  while (left > 0) {
+    c = addDaysLocal(c, 1)
+    const dow = c.getDay()
+    if (dow !== 0 && dow !== 6) left -= 1
+  }
+  return c
+}
+function mondayOf(d: Date): Date {
+  const dow = d.getDay()
+  const diff = dow === 0 ? -6 : 1 - dow
+  return addDaysLocal(d, diff)
+}
+
+/**
+ * Dias de coleta esperados (YYYY-MM-DD) para um tipo, dado o dia de roteirização.
+ *  - W-1: coletas da PRÓXIMA semana (segunda a sexta).
+ *  - D-1: 1 dia útil após a roteirização.
+ *  - D-2: 2 dias úteis após a roteirização.
+ */
+function expectedCollectionDates(tipo: TipoRoteirizacao, routingISO: string): string[] {
+  const routing = parseISO(routingISO)
+  if (Number.isNaN(routing.getTime())) return []
+  if (tipo === "W-1") {
+    const nextMonday = addDaysLocal(mondayOf(routing), 7)
+    return [0, 1, 2, 3, 4].map((i) => fmtISO(addDaysLocal(nextMonday, i)))
+  }
+  if (tipo === "D-1") return [fmtISO(addBusinessDays(routing, 1))]
+  return [fmtISO(addBusinessDays(routing, 2))] // D-2
+}
 
 /** Monta um ISO local a partir de "YYYY-MM-DD" + "HH:MM:SS". */
 function toIso(date: string, time: string): string {
@@ -170,6 +231,8 @@ export function buildFaro(
         iniciadas: published ? 0 : 1,
         publicadas: published ? 1 : 0,
         orders: [order],
+        pendente: false,
+        missingDates: [],
       })
     }
   }
@@ -178,10 +241,51 @@ export function buildFaro(
   let iniciadas = 0
   let publicadas = 0
 
+  // HUBs elegíveis a cada tipo, respeitando os filtros de Regional/HUB.
+  const hubEligible = (hub: string): boolean => {
+    if (hubsSel && !hubsSel.includes(hub)) return false
+    const reg = regionalForHub(hub)
+    if (reg === "N/D") return false
+    if (regionaisSel && !regionaisSel.includes(reg)) return false
+    return true
+  }
+
   const tipos: FaroTipo[] = TIPOS_ORDER.map((tipo) => {
-    const hubs = [...tipoMap.get(tipo)!.values()].sort(
-      (a, b) => b.iniciadas - a.iniciadas || a.hub.localeCompare(b.hub),
-    )
+    const hubMap = tipoMap.get(tipo)!
+    const expDates = expectedCollectionDates(tipo, date)
+    const skipTipo = tiposSel && !tiposSel.includes(tipo)
+
+    if (!skipTipo) {
+      // Universo de HUBs esperados para o tipo (D-2 só vale para HUBs de longa distância).
+      const universe = (tipo === "D-2" ? [...D2_HUBS] : ALL_HUBS).filter(hubEligible)
+      for (const hub of universe) {
+        const existing = hubMap.get(hub)
+        if (existing) {
+          // Datas de coleta esperadas pela regra ainda não roteirizadas neste HUB.
+          const presentDates = new Set(existing.orders.map((o) => o.collectionDate))
+          existing.missingDates = expDates.filter((d) => !presentDates.has(d))
+        } else {
+          // HUB esperado, mas sem nenhuma roteirização iniciada no dia: pendente.
+          hubMap.set(hub, {
+            hub,
+            regional: regionalForHub(hub),
+            total: 0,
+            iniciadas: 0,
+            publicadas: 0,
+            orders: [],
+            pendente: true,
+            missingDates: expDates,
+          })
+        }
+      }
+    }
+
+    const hubs = [...hubMap.values()].sort((a, b) => {
+      const aActive = a.total > 0 ? 1 : 0
+      const bActive = b.total > 0 ? 1 : 0
+      if (aActive !== bActive) return bActive - aActive // ativos antes de pendentes
+      return b.iniciadas - a.iniciadas || a.hub.localeCompare(b.hub)
+    })
     // Ordena os roteiros de cada hub: em andamento primeiro, depois por coleta.
     for (const h of hubs) {
       h.orders.sort((a, b) => {
@@ -192,10 +296,11 @@ export function buildFaro(
     const tTotal = hubs.reduce((acc, h) => acc + h.total, 0)
     const tIni = hubs.reduce((acc, h) => acc + h.iniciadas, 0)
     const tPub = hubs.reduce((acc, h) => acc + h.publicadas, 0)
+    const tPend = hubs.filter((h) => h.pendente).length
     total += tTotal
     iniciadas += tIni
     publicadas += tPub
-    return { tipo, hubs, total: tTotal, iniciadas: tIni, publicadas: tPub }
+    return { tipo, hubs, total: tTotal, iniciadas: tIni, publicadas: tPub, pendentes: tPend }
   })
 
   return {

@@ -9,6 +9,7 @@ import {
   Radar,
   ArrowLeft,
   CircleCheck,
+  CircleDashed,
   LoaderCircle,
   Building2,
 } from "lucide-react"
@@ -122,6 +123,16 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
 
   const pct = totals.total > 0 ? Math.round((totals.publicadas / totals.total) * 100) : 0
 
+  // Tipos visíveis: quando há filtro de tipo, mostra apenas os selecionados.
+  const tipoFilter =
+    filters?.tipo && filters.tipo !== "TODOS"
+      ? filters.tipo.split(",").map((s) => s.trim())
+      : null
+  const visibleTipos = (data?.tipos ?? []).filter((t) => (tipoFilter ? tipoFilter.includes(t.tipo) : true))
+  const hasAnyHub = visibleTipos.some((t) => t.hubs.length > 0)
+  // Quando há apenas um tipo selecionado, usa layout paisagem (HUBs em grade horizontal).
+  const landscape = visibleTipos.length === 1
+
   return (
     <div className={embedded ? "flex flex-col gap-6" : "mx-auto max-w-[1600px] px-6 py-6"}>
       {/* Título + controles */}
@@ -181,6 +192,9 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
           <span className="inline-flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-full bg-success" /> Publicada
           </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-muted-foreground/40" /> Pendente / data faltante
+          </span>
         </div>
         <p className="text-xs text-muted-foreground">
           {isValidating
@@ -196,14 +210,14 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
           <LoaderCircle className="h-5 w-5 animate-spin" />
           Carregando o acompanhamento...
         </div>
-      ) : totals.total === 0 ? (
+      ) : !hasAnyHub ? (
         <div className="rounded-xl border border-dashed border-border bg-card py-20 text-center text-muted-foreground">
-          Nenhuma roteirização iniciada em {formatDayShort(effectiveDate)}.
+          Nenhum HUB esperado para {formatDayShort(effectiveDate)} com os filtros atuais.
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-          {(data?.tipos ?? []).map((tipo) => (
-            <TipoColumn key={tipo.tipo} tipo={tipo} />
+        <div className={landscape ? "flex flex-col gap-5" : "grid grid-cols-1 gap-5 lg:grid-cols-3"}>
+          {visibleTipos.map((tipo) => (
+            <TipoColumn key={tipo.tipo} tipo={tipo} landscape={landscape} />
           ))}
         </div>
       )}
@@ -242,12 +256,12 @@ function SummaryCard({
   )
 }
 
-function TipoColumn({ tipo }: { tipo: FaroTipo }) {
+function TipoColumn({ tipo, landscape = false }: { tipo: FaroTipo; landscape?: boolean }) {
   const info = TIPO_INFO[tipo.tipo] ?? { label: tipo.tipo, descricao: "", accent: "bg-primary" }
   const pct = tipo.total > 0 ? Math.round((tipo.publicadas / tipo.total) * 100) : 0
   return (
     <section className="flex flex-col rounded-xl border border-border bg-secondary/40">
-      <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
         <div className="flex items-center gap-2.5">
           <span className={`flex h-9 items-center rounded-lg ${info.accent} px-2.5 text-sm font-bold text-primary-foreground`}>
             {info.label}
@@ -259,17 +273,31 @@ function TipoColumn({ tipo }: { tipo: FaroTipo }) {
             </p>
           </div>
         </div>
-        {tipo.iniciadas > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-1 text-[11px] font-bold text-warning">
-            <LoaderCircle className="h-3 w-3 animate-spin" />
-            {tipo.iniciadas}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {tipo.iniciadas > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-1 text-[11px] font-bold text-warning">
+              <LoaderCircle className="h-3 w-3 animate-spin" />
+              {tipo.iniciadas}
+            </span>
+          )}
+          {tipo.pendentes > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-[11px] font-bold text-muted-foreground">
+              <CircleDashed className="h-3 w-3" />
+              {tipo.pendentes} pendente{tipo.pendentes > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
       </header>
 
-      <div className="flex flex-col gap-3 p-3">
+      <div
+        className={
+          landscape
+            ? "grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+            : "flex flex-col gap-3 p-3"
+        }
+      >
         {tipo.hubs.length === 0 ? (
-          <p className="px-1 py-6 text-center text-xs text-muted-foreground">Sem roteirizações neste tipo.</p>
+          <p className="px-1 py-6 text-center text-xs text-muted-foreground">Nenhum HUB esperado neste tipo.</p>
         ) : (
           tipo.hubs.map((hub) => <HubCard key={hub.hub} hub={hub} />)
         )}
@@ -279,33 +307,60 @@ function TipoColumn({ tipo }: { tipo: FaroTipo }) {
 }
 
 function HubCard({ hub }: { hub: FaroHub }) {
-  const allDone = hub.iniciadas === 0
+  const pendente = hub.pendente || hub.total === 0
+  const allDone = !pendente && hub.iniciadas === 0
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div className={`rounded-lg border p-3 ${pendente ? "border-dashed border-border bg-muted/30" : "border-border bg-card"}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-bold text-foreground">{hub.hub}</span>
+          <span className={`text-sm font-bold ${pendente ? "text-muted-foreground" : "text-foreground"}`}>{hub.hub}</span>
           <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
             {hub.regional}
           </span>
         </div>
-        <span
-          className={`inline-flex items-center gap-1 text-[11px] font-bold ${
-            allDone ? "text-success" : "text-warning"
-          }`}
-        >
-          {allDone ? <CircleCheck className="h-3.5 w-3.5" /> : <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
-          {hub.publicadas}/{hub.total}
-        </span>
+        {pendente ? (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
+            <CircleDashed className="h-3.5 w-3.5" />
+            Pendente
+          </span>
+        ) : (
+          <span
+            className={`inline-flex items-center gap-1 text-[11px] font-bold ${
+              allDone ? "text-success" : "text-warning"
+            }`}
+          >
+            {allDone ? <CircleCheck className="h-3.5 w-3.5" /> : <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
+            {hub.publicadas}/{hub.total}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-1.5">
         {hub.orders.map((order, i) => (
           <OrderChip key={`${order.collectionDate}-${i}`} order={order} />
         ))}
+        {hub.missingDates.map((d) => (
+          <MissingChip key={`miss-${d}`} collectionDate={d} />
+        ))}
+        {!pendente && hub.orders.length === 0 && hub.missingDates.length === 0 && (
+          <span className="text-[11px] text-muted-foreground">Sem datas esperadas.</span>
+        )}
       </div>
     </div>
+  )
+}
+
+function MissingChip({ collectionDate }: { collectionDate: string }) {
+  return (
+    <span
+      title={`Coleta ${formatDayShort(collectionDate)} ainda não roteirizada`}
+      className="inline-flex items-center gap-1 rounded-md border border-dashed border-muted-foreground/40 bg-muted/40 px-2 py-1 text-[11px] font-semibold text-muted-foreground"
+    >
+      <CircleDashed className="h-3 w-3" />
+      {formatDayShort(collectionDate)}
+      <span className="opacity-70">faltante</span>
+    </span>
   )
 }
 
