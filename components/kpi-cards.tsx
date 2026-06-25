@@ -42,7 +42,7 @@ export function KpiCards({
   const deltaPositive = delta >= 0
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
       {/* Performance atual */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex items-start justify-between">
@@ -121,7 +121,7 @@ export function KpiCards({
 
       {/* Dias Roteirizados */}
       {diasRoteirizados.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:col-span-2 xl:col-span-1">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <CalendarDays className="h-5 w-5" />
