@@ -1,7 +1,5 @@
 import type { RawRoutingOrder, TipoRoteirizacao } from "./types"
 import { regionalForHub, ALL_HUBS, isDeactivatedHub } from "./hubs"
-import { getTipoRoteirizacao } from "./routing-clock"
-import { DEADLINE_EXCEPTIONS } from "./routing-clock-exceptions"
 
 // ----------------------------------------------------------------------------
 // Faro da Roteirização — acompanhamento em tempo real do andamento das
@@ -57,14 +55,9 @@ export interface FaroData {
 
 const TIPOS_ORDER: TipoRoteirizacao[] = ["W-1", "D-1", "D-2"]
 
-/** HUBs elegíveis ao tipo D-2 (exceção), conforme exceções configuradas. */
-const D2_HUBS = new Set(
-  DEADLINE_EXCEPTIONS.flatMap((e) => (e.hubs === "*" ? ALL_HUBS : e.hubs)),
-)
-
 /**
- * HUBs que hoje só são roteirizados em D-2 (exceção). Não devem aparecer como
- * esperados/pendentes nas listas de W-1 ou D-1.
+ * HUBs que hoje só são roteirizados em D-2 (exceção). Aparecem exclusivamente na
+ * coluna D-2 e não constam como esperados/pendentes nas listas de W-1 ou D-1.
  */
 const D2_ONLY_HUBS = new Set(["BRXMG2", "BRXSP11", "BRXMG3", "BRXBA1", "BRXPE1", "BRXCE1", "BRXPR3"])
 
@@ -206,9 +199,16 @@ export function buildFaro(
     if (regionaisSel && !regionaisSel.includes(regional)) continue
 
     const collectionDate = r.RTG_ORD_PLAN_LOCAL_DATE || ""
-    const colDate = new Date(`${collectionDate || r.created_date}T00:00:00`)
-    // HUBs que hoje só roteirizam em D-2 (exceção) são sempre classificados como D-2.
-    const tipo = D2_ONLY_HUBS.has(hub) ? "D-2" : getTipoRoteirizacao(hub, colDate, r.planification_type)
+    // Classificação do acompanhamento:
+    //  - HUBs de exceção (lista fixa) sempre D-2.
+    //  - Demais HUBs pelo tipo de planejamento: tactical = W-1 (semanal), replanning = D-1.
+    // Aqui NÃO se aplica a regra de exceção por data de coleta (usada no Routing Clock),
+    // pois ela reclassificava roteirizações táticas (W-1) como D-2 indevidamente.
+    const tipo: TipoRoteirizacao = D2_ONLY_HUBS.has(hub)
+      ? "D-2"
+      : r.planification_type === "tactical"
+        ? "W-1"
+        : "D-1"
     if (tiposSel && !tiposSel.includes(tipo)) continue
 
     let published = isPublished(r.RTG_ORD_STATUS, r.updated_date, r.updated_time)
@@ -268,9 +268,9 @@ export function buildFaro(
     const skipTipo = tiposSel && !tiposSel.includes(tipo)
 
     if (!skipTipo) {
-      // Universo de HUBs esperados para o tipo (D-2 só vale para HUBs de longa distância).
+      // Universo de HUBs esperados para o tipo (D-2 só vale para os HUBs de exceção).
       const universe = (
-        tipo === "D-2" ? [...D2_HUBS] : ALL_HUBS.filter((h) => !D2_ONLY_HUBS.has(h))
+        tipo === "D-2" ? [...D2_ONLY_HUBS] : ALL_HUBS.filter((h) => !D2_ONLY_HUBS.has(h))
       ).filter(hubEligible)
       for (const hub of universe) {
         const existing = hubMap.get(hub)
