@@ -32,6 +32,11 @@ export interface FaroHub {
   pendente: boolean
   /** Dias de coleta (YYYY-MM-DD) esperados pela regra e ainda não roteirizados neste HUB. */
   missingDates: string[]
+  /**
+   * Subconjunto de coletas faltantes cujo prazo de roteirização já passou
+   * (ex.: W-1 de segunda/terça não roteirizado até quarta). Exibidas em vermelho.
+   */
+  overdueDates: string[]
 }
 
 export interface FaroTipo {
@@ -118,6 +123,31 @@ function expectedCollectionDates(tipo: TipoRoteirizacao, routingISO: string): st
   }
   if (tipo === "D-1") return [fmtISO(addBusinessDays(routing, 1))]
   return [fmtISO(addBusinessDays(routing, 2))] // D-2
+}
+
+/**
+ * Prazo de roteirização (dia da semana, 0=dom..6=sáb) de uma coleta do W-1:
+ *  - Coletas de SEGUNDA/TERÇA são roteirizadas até a QUARTA (3) da semana anterior.
+ *  - Coletas de QUARTA/QUINTA/SEXTA são roteirizadas até a QUINTA (4).
+ */
+function w1DeadlineDow(collectionISO: string): number {
+  const dow = parseISO(collectionISO).getDay() // 1=seg..5=sex
+  return dow <= 2 ? 3 : 4
+}
+
+/**
+ * Separa as coletas faltantes do W-1 em "no prazo" (cinza) e "atrasadas" (vermelho).
+ * Uma coleta está atrasada quando o dia da semana monitorado já passou do prazo
+ * de roteirização dela (ex.: segunda/terça não feitas e hoje já é quinta).
+ */
+function splitW1Missing(dates: string[], monitoredDow: number): { missing: string[]; overdue: string[] } {
+  const missing: string[] = []
+  const overdue: string[] = []
+  for (const d of dates) {
+    if (monitoredDow > w1DeadlineDow(d)) overdue.push(d)
+    else missing.push(d)
+  }
+  return { missing, overdue }
 }
 
 /** Monta um ISO local a partir de "YYYY-MM-DD" + "HH:MM:SS". */
@@ -226,6 +256,8 @@ export function buildFaro(
   const applyW1Lookback = computePendentes
   const w1RoutingStart = applyW1Lookback ? prevBusinessDayISO(dateInicio) : dateInicio
   const w1Expected = new Set(expectedCollectionDates("W-1", date))
+  // Dia da semana do dia monitorado (para decidir o que está "atrasado" no W-1).
+  const monitoredDow = parseISO(date).getDay()
 
   // Mapa tipo -> hub -> FaroHub
   const tipoMap = new Map<TipoRoteirizacao, Map<string, FaroHub>>()
@@ -299,6 +331,7 @@ export function buildFaro(
         orders: [order],
         pendente: false,
         missingDates: [],
+        overdueDates: [],
       })
     }
   }
@@ -330,10 +363,19 @@ export function buildFaro(
         const existing = hubMap.get(hub)
         if (existing) {
           // Datas de coleta esperadas pela regra ainda não roteirizadas neste HUB.
-          const presentDates = new Set(existing.orders.map((o) => o.collectionDate))
-          existing.missingDates = expDates.filter((d) => !presentDates.has(d))
+          const present = new Set(existing.orders.map((o) => o.collectionDate))
+          const faltantes = expDates.filter((d) => !present.has(d))
+          if (tipo === "W-1") {
+            const { missing, overdue } = splitW1Missing(faltantes, monitoredDow)
+            existing.missingDates = missing
+            existing.overdueDates = overdue
+          } else {
+            existing.missingDates = faltantes
+          }
         } else {
           // HUB esperado, mas sem nenhuma roteirização iniciada no dia: pendente.
+          const { missing, overdue } =
+            tipo === "W-1" ? splitW1Missing(expDates, monitoredDow) : { missing: expDates, overdue: [] }
           hubMap.set(hub, {
             hub,
             regional: regionalForHub(hub),
@@ -342,17 +384,19 @@ export function buildFaro(
             publicadas: 0,
             orders: [],
             pendente: true,
-            missingDates: expDates,
+            missingDates: missing,
+            overdueDates: overdue,
           })
         }
       }
     }
 
-    // Ordenação: do topo (mais roteiros faltantes) para baixo (mais roteiros feitos).
-    // HUBs pendentes contam todas as coletas esperadas como faltantes.
-    const missingOf = (h: FaroHub) => h.missingDates.length + (h.pendente ? 1 : 0)
+    // Ordenação: do topo (mais roteiros faltantes/atrasados) para baixo (mais feitos).
+    // Atrasados pesam mais para que os HUBs em vermelho fiquem no topo.
+    const missingOf = (h: FaroHub) =>
+      h.overdueDates.length * 10 + h.missingDates.length + (h.pendente ? 1 : 0)
     const hubs = [...hubMap.values()].sort((a, b) => {
-      const fb = missingOf(b) - missingOf(a) // mais faltantes primeiro
+      const fb = missingOf(b) - missingOf(a) // mais faltantes/atrasados primeiro
       if (fb !== 0) return fb
       const done = a.publicadas - b.publicadas // menos publicadas antes (mais feitas embaixo)
       if (done !== 0) return done

@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   CircleCheck,
   CircleDashed,
+  CircleAlert,
   LoaderCircle,
   Building2,
 } from "lucide-react"
@@ -149,7 +150,7 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
             </div>
             <div>
               <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground">
-                ACOMPANHAMENTO DA <span className="text-primary">ROTEIRIZAÇÃO</span>
+                ACOMPANHAMENTO DA ROTEIRIZAÇÃO
               </h1>
             </div>
           </div>
@@ -198,6 +199,9 @@ export function FaroContent({ embedded = false, filters }: { embedded?: boolean;
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-full bg-muted-foreground/40" /> Pendente / data faltante
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-destructive" /> Atrasado (fora do prazo)
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -312,18 +316,31 @@ function TipoColumn({ tipo, landscape = false }: { tipo: FaroTipo; landscape?: b
 
 function HubCard({ hub }: { hub: FaroHub }) {
   const pendente = hub.pendente || hub.total === 0
+  const hasOverdue = hub.overdueDates.length > 0
   const allDone = !pendente && hub.iniciadas === 0
+  const borderClass = hasOverdue
+    ? "border-destructive/50 bg-destructive/5"
+    : pendente
+      ? "border-dashed border-border bg-muted/30"
+      : "border-border bg-card"
   return (
-    <div className={`rounded-lg border p-3 ${pendente ? "border-dashed border-border bg-muted/30" : "border-border bg-card"}`}>
+    <div className={`rounded-lg border p-3 ${borderClass}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className={`text-sm font-bold ${pendente ? "text-muted-foreground" : "text-foreground"}`}>{hub.hub}</span>
+          <span className={`text-sm font-bold ${pendente && !hasOverdue ? "text-muted-foreground" : "text-foreground"}`}>
+            {hub.hub}
+          </span>
           <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
             {hub.regional}
           </span>
         </div>
-        {pendente ? (
+        {hasOverdue ? (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-destructive">
+            <CircleAlert className="h-3.5 w-3.5" />
+            {hub.overdueDates.length} atrasado{hub.overdueDates.length > 1 ? "s" : ""}
+          </span>
+        ) : pendente ? (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
             <CircleDashed className="h-3.5 w-3.5" />
             Pendente
@@ -341,17 +358,36 @@ function HubCard({ hub }: { hub: FaroHub }) {
       </div>
 
       <div className="flex flex-wrap gap-1.5">
+        {hub.overdueDates.map((d) => (
+          <OverdueChip key={`over-${d}`} collectionDate={d} />
+        ))}
         {hub.orders.map((order, i) => (
           <OrderChip key={`${order.collectionDate}-${i}`} order={order} />
         ))}
         {hub.missingDates.map((d) => (
           <MissingChip key={`miss-${d}`} collectionDate={d} />
         ))}
-        {!pendente && hub.orders.length === 0 && hub.missingDates.length === 0 && (
-          <span className="text-[11px] text-muted-foreground">Sem datas esperadas.</span>
-        )}
+        {!pendente &&
+          hub.orders.length === 0 &&
+          hub.missingDates.length === 0 &&
+          hub.overdueDates.length === 0 && (
+            <span className="text-[11px] text-muted-foreground">Sem datas esperadas.</span>
+          )}
       </div>
     </div>
+  )
+}
+
+function OverdueChip({ collectionDate }: { collectionDate: string }) {
+  return (
+    <span
+      title={`Coleta ${formatDayShort(collectionDate)} fora do prazo de roteirização`}
+      className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] font-semibold text-destructive"
+    >
+      <CircleAlert className="h-3 w-3" />
+      {formatDayShort(collectionDate)}
+      <span className="opacity-70">atrasado</span>
+    </span>
   )
 }
 
