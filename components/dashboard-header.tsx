@@ -1,7 +1,6 @@
 "use client"
 
-import { LayoutGrid, RefreshCw, Package, Radar } from "lucide-react"
-import Link from "next/link"
+import { LayoutGrid, RefreshCw, Package } from "lucide-react"
 
 interface DashboardHeaderProps {
   onRefresh: () => void
@@ -53,23 +52,14 @@ export function DashboardHeader({ onRefresh, refreshing, lastUpdated }: Dashboar
           </div>
 
           <div className="flex flex-col items-start gap-1.5 sm:items-end">
-            <div className="flex items-center gap-2">
-              <Link
-                href="/faro"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-              >
-                <Radar className="h-4 w-4" />
-                Faro da Roteirização
-              </Link>
-              <button
-                onClick={onRefresh}
-                disabled={refreshing}
-                className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-accent disabled:opacity-60"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-                Atualizar Dados
-              </button>
-            </div>
+            <button
+              onClick={onRefresh}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-accent disabled:opacity-60"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              Atualizar Dados
+            </button>
             <p className="text-xs text-muted-foreground">
               {refreshing
                 ? "Atualizando..."

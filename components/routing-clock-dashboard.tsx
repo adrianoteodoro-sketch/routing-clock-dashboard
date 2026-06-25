@@ -11,10 +11,11 @@ import { TipoPerformanceChart } from "@/components/tipo-performance-chart"
 import { AnomaliasPanel } from "@/components/anomalias-panel"
 import { OffendersList, SeverityRange } from "@/components/offenders-severity"
 import { HubAnalysis, HubTable } from "@/components/hub-analysis"
-import { Loader2, LayoutDashboard, Building2, AlertTriangle } from "lucide-react"
+import { FaroContent } from "@/components/faro-board"
+import { Loader2, LayoutDashboard, Building2, AlertTriangle, Radar } from "lucide-react"
 import type { DashboardData, Filters } from "@/lib/types"
 
-type TabId = "geral" | "hubs"
+type TabId = "geral" | "acompanhamento" | "hubs"
 
 // Formata "YYYY-MM-DD" -> "22 de junho de 2026" (pt-BR).
 function formatDateBR(iso: string): string {
@@ -207,6 +208,12 @@ export function RoutingClockDashboard() {
               label="Visão Geral"
             />
             <TabButton
+              active={tab === "acompanhamento"}
+              onClick={() => setTab("acompanhamento")}
+              icon={<Radar className="h-4 w-4" />}
+              label="Acompanhamento da Roteirização"
+            />
+            <TabButton
               active={tab === "hubs"}
               onClick={() => setTab("hubs")}
               icon={<Building2 className="h-4 w-4" />}
@@ -214,7 +221,9 @@ export function RoutingClockDashboard() {
             />
           </div>
 
-          {isLoading || !data ? (
+          {tab === "acompanhamento" ? (
+            <FaroContent embedded />
+          ) : isLoading || !data ? (
             <div className="flex h-[60vh] items-center justify-center">
               <div className="flex flex-col items-center gap-3 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />

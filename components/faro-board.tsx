@@ -56,6 +56,31 @@ function formatTimestamp(date: Date): string {
 }
 
 export function FaroBoard() {
+  return (
+    <main className="min-h-screen bg-background">
+      {/* Barra de marca */}
+      <div className="w-full bg-brand-yellow">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <Package className="h-7 w-7 text-foreground" strokeWidth={2.2} />
+            <span className="text-xl font-bold tracking-tight text-foreground">Mercado Livre</span>
+          </div>
+          <Link
+            href="/routing-clock"
+            className="inline-flex items-center gap-2 rounded-lg bg-foreground/10 px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-foreground/20"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Routing Clock
+          </Link>
+        </div>
+      </div>
+
+      <FaroContent />
+    </main>
+  )
+}
+
+export function FaroContent({ embedded = false }: { embedded?: boolean }) {
   const [date, setDate] = useState<string>(todayISO())
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
@@ -82,113 +107,92 @@ export function FaroBoard() {
   const pct = totals.total > 0 ? Math.round((totals.publicadas / totals.total) * 100) : 0
 
   return (
-    <main className="min-h-screen bg-background">
-      {/* Barra de marca */}
-      <div className="w-full bg-brand-yellow">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4">
+    <div className={embedded ? "flex flex-col gap-6" : "mx-auto max-w-[1600px] px-6 py-6"}>
+      {/* Título + controles */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-1 rounded-full bg-primary" aria-hidden />
           <div className="flex items-center gap-3">
-            <Package className="h-7 w-7 text-foreground" strokeWidth={2.2} />
-            <span className="text-xl font-bold tracking-tight text-foreground">Mercado Livre</span>
-          </div>
-          <Link
-            href="/routing-clock"
-            className="inline-flex items-center gap-2 rounded-lg bg-foreground/10 px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-foreground/20"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Routing Clock
-          </Link>
-        </div>
-      </div>
-
-      {/* Título */}
-      <div className="w-full border-b border-border bg-card">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-1 rounded-full bg-primary" aria-hidden />
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <Radar className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground">
-                  FARO DA <span className="text-primary">ROTEIRIZAÇÃO</span>
-                </h1>
-                <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                  Acompanhamento em tempo real por HUB e tipo
-                </p>
-              </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <Radar className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground">
+                ACOMPANHAMENTO DA <span className="text-primary">ROTEIRIZAÇÃO</span>
+              </h1>
+              <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                Acompanhamento em tempo real por HUB e tipo
+              </p>
             </div>
           </div>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <span className="text-muted-foreground">Dia</span>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value || todayISO())}
-                aria-label="Dia da roteirização monitorado"
-                className="h-9 rounded-md border border-input bg-background px-2 text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </label>
-            <button
-              onClick={() => mutate()}
-              disabled={isValidating}
-              className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-accent disabled:opacity-60"
-            >
-              <RefreshCw className={`h-4 w-4 ${isValidating ? "animate-spin" : ""}`} />
-              Atualizar
-            </button>
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <span className="text-muted-foreground">Dia</span>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value || todayISO())}
+              aria-label="Dia da roteirização monitorado"
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </label>
+          <button
+            onClick={() => mutate()}
+            disabled={isValidating}
+            className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground shadow-sm transition-colors hover:bg-accent disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${isValidating ? "animate-spin" : ""}`} />
+            Atualizar
+          </button>
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1600px] px-6 py-6">
-        {/* Resumo geral */}
-        <section className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <SummaryCard label="Roteirizações" value={totals.total} tone="neutral" />
-          <SummaryCard label="Em andamento" value={totals.iniciadas} tone="warning" icon="loading" />
-          <SummaryCard label="Publicadas" value={totals.publicadas} tone="success" icon="check" />
-          <SummaryCard label="Concluído" value={`${pct}%`} tone="primary" />
-        </section>
+      {/* Resumo geral */}
+      <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <SummaryCard label="Roteirizações" value={totals.total} tone="neutral" />
+        <SummaryCard label="Em andamento" value={totals.iniciadas} tone="warning" icon="loading" />
+        <SummaryCard label="Publicadas" value={totals.publicadas} tone="success" icon="check" />
+        <SummaryCard label="Concluído" value={`${pct}%`} tone="primary" />
+      </section>
 
-        {/* Legenda + status de atualização */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-full bg-warning" /> Iniciada / em andamento
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-full bg-success" /> Publicada
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {isValidating
-              ? "Atualizando..."
-              : lastUpdated
-                ? `Atualizado às ${formatTimestamp(lastUpdated)} · auto a cada 60s`
-                : "Aguardando dados..."}
-          </p>
+      {/* Legenda + status de atualização */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-warning" /> Iniciada / em andamento
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-success" /> Publicada
+          </span>
         </div>
-
-        {isLoading && !data ? (
-          <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card py-20 text-muted-foreground">
-            <LoaderCircle className="h-5 w-5 animate-spin" />
-            Carregando o Faro...
-          </div>
-        ) : totals.total === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-card py-20 text-center text-muted-foreground">
-            Nenhuma roteirização iniciada em {formatDayShort(date)}.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-            {(data?.tipos ?? []).map((tipo) => (
-              <TipoColumn key={tipo.tipo} tipo={tipo} />
-            ))}
-          </div>
-        )}
+        <p className="text-xs text-muted-foreground">
+          {isValidating
+            ? "Atualizando..."
+            : lastUpdated
+              ? `Atualizado às ${formatTimestamp(lastUpdated)} · auto a cada 60s`
+              : "Aguardando dados..."}
+        </p>
       </div>
-    </main>
+
+      {isLoading && !data ? (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card py-20 text-muted-foreground">
+          <LoaderCircle className="h-5 w-5 animate-spin" />
+          Carregando o acompanhamento...
+        </div>
+      ) : totals.total === 0 ? (
+        <div className="rounded-xl border border-dashed border-border bg-card py-20 text-center text-muted-foreground">
+          Nenhuma roteirização iniciada em {formatDayShort(date)}.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+          {(data?.tipos ?? []).map((tipo) => (
+            <TipoColumn key={tipo.tipo} tipo={tipo} />
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
