@@ -145,7 +145,7 @@ function getExceptionDeadline(
  *  - tactical -> "W-1"
  *  - replanning padrão -> "D-1"
  */
-function getTipoRoteirizacao(
+export function getTipoRoteirizacao(
   facilityId: string,
   collectionDate: Date,
   type: "tactical" | "replanning",
