@@ -94,12 +94,15 @@ export function KpiCards({
           <div className="mt-4 border-t border-border pt-4">
             <div className="mb-2 flex items-center gap-1.5 text-muted-foreground">
               <CalendarDays className="h-4 w-4" />
-              <span className="text-[11px] font-bold uppercase tracking-wide">Dias Roteirizados</span>
+              <span className="text-[11px] font-bold uppercase tracking-wide">Dias Roteirizados Fora da Meta</span>
             </div>
+            {diasRoteirizados.every((d) => (d.performance ?? 0) >= (d.meta ?? 0)) && (
+              <p className="text-xs font-medium text-success">Todos os dias roteirizados estão dentro da meta.</p>
+            )}
             <div className="flex flex-col gap-2">
               {["W-1", "D-1", "D-2"].map((tipo) => {
-                // Não exibe combinações com performance 0% (sem aderência real no dia).
-                const dias = diasRoteirizados.filter((d) => d.tipo === tipo && (d.performance ?? 0) > 0)
+                // Exibe apenas as combinações FORA DA META (inclui zeradas) - precisam de atenção.
+                const dias = diasRoteirizados.filter((d) => d.tipo === tipo && (d.performance ?? 0) < (d.meta ?? 0))
                 if (dias.length === 0) return null
                 return (
                   <div key={tipo} className="flex flex-wrap items-center gap-1.5">
