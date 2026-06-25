@@ -1,5 +1,5 @@
 import type { RawRoutingOrder, TipoRoteirizacao } from "./types"
-import { regionalForHub, ALL_HUBS } from "./hubs"
+import { regionalForHub, ALL_HUBS, isDeactivatedHub } from "./hubs"
 import { getTipoRoteirizacao } from "./routing-clock"
 import { DEADLINE_EXCEPTIONS } from "./routing-clock-exceptions"
 
@@ -131,6 +131,10 @@ function toIso(date: string, time: string): string {
 /** Detecta se a roteirização já foi publicada a partir do status + updated_time. */
 function isPublished(statusRaw: string, updatedDate: string, updatedTime: string): boolean {
   const s = (statusRaw || "").toLowerCase()
+  // Status explicitamente "em andamento": nunca contam como publicado,
+  // mesmo que já exista updated_time preenchido.
+  const inProgress = s.includes("processing") || s.includes("draft")
+  if (inProgress) return false
   const publishedLike =
     s.includes("publish") ||
     s.includes("public") ||
@@ -195,6 +199,7 @@ export function buildFaro(
     if ((r.created_date || "") !== date) continue
     const hub = (r.SHP_FACILITY_ID || "").trim()
     if (!hub) continue
+    if (isDeactivatedHub(hub)) continue // HUB desativado: fora do acompanhamento
     if (hubsSel && !hubsSel.includes(hub)) continue
     const regional = r.Regional || regionalForHub(hub)
     if (regional === "N/D") continue

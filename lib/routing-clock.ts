@@ -20,7 +20,7 @@ import type {
   TipoRoteirizacao,
   WaterfallPonto,
 } from "./types"
-import { regionalForHub } from "./hubs"
+import { regionalForHub, isDeactivatedHub } from "./hubs"
 import { DEADLINE_EXCEPTIONS } from "./routing-clock-exceptions"
 
 export const META_PERFORMANCE = 95 // % das operações entregues dentro do horário
@@ -858,7 +858,7 @@ export function buildDashboard(
         orders
           .filter((o) => filters.regional === "TODAS" || o.regional === filters.regional)
           .map((o) => o.facilityId),
-      ),
+      ).filter((h) => !isDeactivatedHub(h)),
       meses: chronoLabels("month"),
       semanas: chronoLabels("week"),
       maxRoutingDate: orders.reduce((max, o) => (o.routingDate > max ? o.routingDate : max), ""),
