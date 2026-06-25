@@ -239,11 +239,23 @@ export interface AnomaliasResumo {
   categorias: AnomaliaCategoria[]
 }
 
+/**
+ * Identificação de um dia que está sendo roteirizado: combinação de tipo de
+ * roteirização (W-1/D-1/D-2) com o dia da semana da coleta (Seg..Sáb). Ex.: "D-1 Ter".
+ */
+export interface DiaRoteirizado {
+  tipo: string // W-1 / D-1 / D-2
+  diaSemana: string // Seg, Ter, Qua, Qui, Sex, Sáb, Dom
+  ordemDia: number // 1=Seg ... 7=Dom (para ordenação)
+  volume: number // qtd de roteiros nessa combinação
+}
+
 export interface DashboardData {
   kpis: Kpis
   mensal: SeriePonto[]
   semanal: SeriePonto[]
   performancePorTipo: PerfPorTipo[]
+  diasRoteirizados: DiaRoteirizado[]
   waterfall: WaterfallPonto[]
   anomalias: AnomaliasResumo
   ofensores: Ofensor[]

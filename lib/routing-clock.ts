@@ -9,6 +9,7 @@ import type {
   Anomalia,
   AnomaliaCategoria,
   AnomaliasResumo,
+  DiaRoteirizado,
   Ofensor,
   PerfPorTipo,
   RangeSeveridade,
@@ -440,6 +441,50 @@ function buildPerfPorTipo(orders: RoutingOrder[]): PerfPorTipo[] {
     .filter((t) => t.volume > 0)
 }
 
+// Dia da semana (1=Seg..7=Dom) a partir de uma data "YYYY-MM-DD" no fuso local.
+const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+function diaSemanaInfo(iso: string): { label: string; ordem: number } | null {
+  if (!iso) return null
+  const [y, m, d] = iso.split("-").map(Number)
+  if (!y || !m || !d) return null
+  const js = new Date(y, m - 1, d).getDay() // 0=Dom..6=Sáb
+  const ordem = js === 0 ? 7 : js // 1=Seg..7=Dom
+  return { label: DIAS_SEMANA[js], ordem }
+}
+
+/**
+ * Identifica quais dias estão sendo roteirizados a partir do dia da roteirização:
+ * agrupa os roteiros por tipo (W-1/D-1/D-2) + dia da semana da COLETA roteirizada.
+ * Ex.: "D-1 Ter" indica que, na data de roteirização filtrada, foi roteirizado o
+ * dia de coleta que cai numa terça-feira. Retorna só as combinações presentes.
+ */
+function buildDiasRoteirizados(orders: RoutingOrder[]): DiaRoteirizado[] {
+  const ordemTipo: Record<string, number> = { "W-1": 0, "D-1": 1, "D-2": 2 }
+  const map = new Map<string, DiaRoteirizado>()
+  for (const o of orders) {
+    const info = diaSemanaInfo(o.collectionDate)
+    if (!info) continue
+    const key = `${o.tipoRoteirizacao}|${info.label}`
+    const existing = map.get(key)
+    if (existing) {
+      existing.volume += 1
+    } else {
+      map.set(key, {
+        tipo: o.tipoRoteirizacao,
+        diaSemana: info.label,
+        ordemDia: info.ordem,
+        volume: 1,
+      })
+    }
+  }
+  return [...map.values()].sort((a, b) => {
+    const ta = ordemTipo[a.tipo] ?? 99
+    const tb = ordemTipo[b.tipo] ?? 99
+    if (ta !== tb) return ta - tb
+    return a.ordemDia - b.ordemDia
+  })
+}
+
 /**
  * Correlaciona as anomalias registradas com o período/escopo filtrado e as agrupa
  * por categoria de problema, separando as que geraram atraso das que não geraram.
@@ -800,6 +845,7 @@ export function buildDashboard(
     mensal,
     semanal,
     performancePorTipo: buildPerfPorTipo(filtered),
+    diasRoteirizados: buildDiasRoteirizados(filtered),
     waterfall: buildWaterfall(filtered, anomaliasResumo.categorias),
     anomalias: anomaliasResumo,
     ofensores: buildOfensores(filtered),

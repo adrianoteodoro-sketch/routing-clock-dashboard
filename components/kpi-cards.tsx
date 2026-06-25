@@ -1,7 +1,7 @@
 "use client"
 
-import { TrendingUp, TrendingDown, Package, Target } from "lucide-react"
-import type { Kpis, PerfPorTipo } from "@/lib/types"
+import { TrendingUp, TrendingDown, Package, Target, CalendarDays } from "lucide-react"
+import type { Kpis, PerfPorTipo, DiaRoteirizado } from "@/lib/types"
 
 function formatNumber(n: number): string {
   return n.toLocaleString("pt-BR")
@@ -19,7 +19,22 @@ function variation(current: number, previous: number): { text: string; positive:
   return { text: `${positive ? "+" : ""}${formatDecimal(pct)}% vs sem. anterior`, positive }
 }
 
-export function KpiCards({ kpis, porTipo = [] }: { kpis: Kpis; porTipo?: PerfPorTipo[] }) {
+// Cor do badge por tipo de roteirização (consistente com o resto do dash).
+const TIPO_BADGE: Record<string, string> = {
+  "W-1": "bg-primary/10 text-primary",
+  "D-1": "bg-warning/15 text-warning",
+  "D-2": "bg-danger/10 text-danger",
+}
+
+export function KpiCards({
+  kpis,
+  porTipo = [],
+  diasRoteirizados = [],
+}: {
+  kpis: Kpis
+  porTipo?: PerfPorTipo[]
+  diasRoteirizados?: DiaRoteirizado[]
+}) {
   const perfVar = variation(kpis.perfUltimaSemana, kpis.perfSemanaAnterior)
   const volVar = variation(kpis.volumeUltimaSemana, kpis.volumeSemanaAnterior)
   const delta = kpis.performanceAtual - kpis.meta
@@ -71,6 +86,37 @@ export function KpiCards({ kpis, porTipo = [] }: { kpis: Kpis; porTipo?: PerfPor
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {diasRoteirizados.length > 0 && (
+          <div className="mt-4 border-t border-border pt-4">
+            <div className="mb-2 flex items-center gap-1.5 text-muted-foreground">
+              <CalendarDays className="h-4 w-4" />
+              <span className="text-[11px] font-bold uppercase tracking-wide">Dias Roteirizados</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {["W-1", "D-1", "D-2"].map((tipo) => {
+                const dias = diasRoteirizados.filter((d) => d.tipo === tipo)
+                if (dias.length === 0) return null
+                return (
+                  <div key={tipo} className="flex flex-wrap items-center gap-1.5">
+                    {dias.map((d) => (
+                      <span
+                        key={`${d.tipo}-${d.diaSemana}`}
+                        title={`${d.volume.toLocaleString("pt-BR")} roteiros`}
+                        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${
+                          TIPO_BADGE[d.tipo] ?? "bg-secondary text-foreground"
+                        }`}
+                      >
+                        {d.tipo} {d.diaSemana}
+                        <span className="text-[10px] font-bold opacity-70">{formatNumber(d.volume)}</span>
+                      </span>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>
