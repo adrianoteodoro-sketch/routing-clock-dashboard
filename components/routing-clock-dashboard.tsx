@@ -241,10 +241,10 @@ export function RoutingClockDashboard() {
 
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <WaterfallChart data={data.waterfall} />
-                <AnomaliasPanel data={data.anomalias} />
+                <TipoPerformanceChart data={data.performancePorTipo} meta={data.kpis.meta} />
               </div>
 
-              <TipoPerformanceChart data={data.performancePorTipo} meta={data.kpis.meta} />
+              <AnomaliasPanel data={data.anomalias} />
 
               {/* HUBs Impactados */}
               <section className="flex flex-col gap-4">
