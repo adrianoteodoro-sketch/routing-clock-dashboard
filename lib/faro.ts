@@ -433,16 +433,17 @@ export function buildFaro(
 
     // Ordenação: do topo (mais roteiros faltantes/atrasados) para baixo (mais feitos).
     // Atrasados pesam mais para que os HUBs em vermelho fiquem no topo.
-    const missingOf = (h: FaroHub) =>
-      h.overdueDates.length * 10 +
-      h.orders.filter((o) => o.late).length * 10 +
-      h.missingDates.length +
-      (h.pendente ? 1 : 0)
+    // Classificação: HUBs com mais operações PENDENTES primeiro, depois mais
+    // EM ANDAMENTO, depois mais FINALIZADAS.
+    const pendentesOf = (h: FaroHub) =>
+      h.overdueDates.length + h.missingDates.length + (h.pendente ? 1 : 0)
     const hubs = [...hubMap.values()].sort((a, b) => {
-      const fb = missingOf(b) - missingOf(a) // mais faltantes/atrasados primeiro
-      if (fb !== 0) return fb
-      const done = a.publicadas - b.publicadas // menos publicadas antes (mais feitas embaixo)
-      if (done !== 0) return done
+      const pend = pendentesOf(b) - pendentesOf(a) // mais pendentes primeiro
+      if (pend !== 0) return pend
+      const andamento = b.iniciadas - a.iniciadas // mais em andamento depois
+      if (andamento !== 0) return andamento
+      const finalizadas = b.publicadas - a.publicadas // mais finalizadas por último
+      if (finalizadas !== 0) return finalizadas
       return a.hub.localeCompare(b.hub)
     })
     // Ordena os roteiros de cada hub: em andamento primeiro, depois por coleta.
