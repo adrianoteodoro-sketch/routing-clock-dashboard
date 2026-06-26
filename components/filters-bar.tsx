@@ -207,6 +207,14 @@ export function FiltersTopBar({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <MultiSelectFilter
+          label="HUB"
+          value={filters.hub}
+          allLabel="TODOS"
+          options={opcoes.hubs}
+          onChange={(v) => onChange({ hub: v })}
+          highlight
+        />
+        <MultiSelectFilter
           label="Regional"
           value={filters.regional}
           allLabel="TODAS"
@@ -215,11 +223,11 @@ export function FiltersTopBar({
           highlight
         />
         <MultiSelectFilter
-          label="HUB"
-          value={filters.hub}
+          label="Tipo Roteirização"
+          value={filters.tipo}
           allLabel="TODOS"
-          options={opcoes.hubs}
-          onChange={(v) => onChange({ hub: v })}
+          options={["D-1", "D-2", "W-1"]}
+          onChange={(v) => onChange({ tipo: v })}
           highlight
         />
         <MultiSelectFilter
@@ -235,14 +243,6 @@ export function FiltersTopBar({
           allLabel="TODAS"
           options={opcoes.semanas}
           onChange={(v) => onChange({ semana: v })}
-        />
-        <MultiSelectFilter
-          label="Tipo Roteirização"
-          value={filters.tipo}
-          allLabel="TODOS"
-          options={["D-1", "D-2", "W-1"]}
-          onChange={(v) => onChange({ tipo: v })}
-          highlight
         />
         <DateRangeFilter
           label="Data da Roteirização"
