@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
 import { DashboardHeader } from "@/components/dashboard-header"
-import { FiltersBar } from "@/components/filters-bar"
+import { FiltersTopBar } from "@/components/filters-bar"
 import { KpiCards } from "@/components/kpi-cards"
 import { MonthlyChart, WeeklyChart } from "@/components/performance-charts"
 import { WaterfallChart } from "@/components/waterfall-chart"
@@ -12,10 +12,37 @@ import { AnomaliasPanel } from "@/components/anomalias-panel"
 import { OffendersList, SeverityRange } from "@/components/offenders-severity"
 import { HubAnalysis, HubTable } from "@/components/hub-analysis"
 import { FaroContent } from "@/components/faro-board"
-import { Loader2, LayoutDashboard, Building2, AlertTriangle, Radar } from "lucide-react"
+import { Loader2, LayoutDashboard, Building2, AlertTriangle, Radar, Home, ArrowRight } from "lucide-react"
 import type { DashboardData, Filters } from "@/lib/types"
 
-type TabId = "geral" | "acompanhamento" | "hubs"
+type TabId = "home" | "geral" | "acompanhamento" | "hubs"
+
+// Metadados das páginas, usados tanto na home (cards) quanto no cabeçalho das abas.
+const PAGES: {
+  id: Exclude<TabId, "home">
+  label: string
+  descricao: string
+  Icon: React.ComponentType<{ className?: string }>
+}[] = [
+  {
+    id: "geral",
+    label: "Visão Geral",
+    descricao: "KPIs, performance por tipo, anomalias e HUBs impactados em um só lugar.",
+    Icon: LayoutDashboard,
+  },
+  {
+    id: "acompanhamento",
+    label: "Acompanhamento da Roteirização",
+    descricao: "Status em tempo real das roteirizações por HUB: pendentes, em andamento e concluídas.",
+    Icon: Radar,
+  },
+  {
+    id: "hubs",
+    label: "Análise de HUBs",
+    descricao: "Detalhamento por facility com métricas de atraso e severidade.",
+    Icon: Building2,
+  },
+]
 
 // Formata "YYYY-MM-DD" -> "22 de junho de 2026" (pt-BR).
 function formatDateBR(iso: string): string {
@@ -62,8 +89,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export function RoutingClockDashboard() {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
-  const [tab, setTab] = useState<TabId>("geral")
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false)
+  const [tab, setTab] = useState<TabId>("home")
 
   const query = useMemo(() => {
     const sp = new URLSearchParams({
@@ -184,44 +210,43 @@ export function RoutingClockDashboard() {
         </div>
       )}
 
-      <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start">
-        {/* Barra lateral de filtros (recolhível) - lado esquerdo */}
-        {data && (
-          <FiltersBar
-            filters={filters}
-            opcoes={data.opcoes}
-            onChange={handleFilterChange}
-            collapsed={filtersCollapsed}
-            onToggle={() => setFiltersCollapsed((c) => !c)}
-            onReset={() => setFilters(DEFAULT_FILTERS)}
-          />
-        )}
+      <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6">
+        {tab === "home" ? (
+          <HomeView onSelect={(id) => setTab(id)} />
+        ) : (
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            {/* Navegação: voltar à home + abas */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setTab("home")}
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold uppercase tracking-tight text-muted-foreground transition-colors hover:bg-secondary/50"
+              >
+                <Home className="h-4 w-4" />
+                Início
+              </button>
+              <div className="h-6 w-px bg-border" aria-hidden />
+              {PAGES.map((p) => (
+                <TabButton
+                  key={p.id}
+                  active={tab === p.id}
+                  onClick={() => setTab(p.id)}
+                  icon={<p.Icon className="h-4 w-4" />}
+                  label={p.label}
+                />
+              ))}
+            </div>
 
-        {/* Conteúdo principal */}
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
-          {/* Seletor de abas */}
-          <div className="flex flex-wrap gap-2">
-            <TabButton
-              active={tab === "geral"}
-              onClick={() => setTab("geral")}
-              icon={<LayoutDashboard className="h-4 w-4" />}
-              label="Visão Geral"
-            />
-            <TabButton
-              active={tab === "acompanhamento"}
-              onClick={() => setTab("acompanhamento")}
-              icon={<Radar className="h-4 w-4" />}
-              label="Acompanhamento da Roteirização"
-            />
-            <TabButton
-              active={tab === "hubs"}
-              onClick={() => setTab("hubs")}
-              icon={<Building2 className="h-4 w-4" />}
-              label="Análise de HUBs"
-            />
-          </div>
+            {/* Barra de filtros horizontal no topo do conteúdo */}
+            {data && (
+              <FiltersTopBar
+                filters={filters}
+                opcoes={data.opcoes}
+                onChange={handleFilterChange}
+                onReset={() => setFilters(DEFAULT_FILTERS)}
+              />
+            )}
 
-          {tab === "acompanhamento" ? (
+            {tab === "acompanhamento" ? (
             <FaroContent embedded filters={filters} />
           ) : isLoading || !data ? (
             <div className="flex h-[60vh] items-center justify-center">
@@ -287,7 +312,8 @@ export function RoutingClockDashboard() {
           ) : (
             <HubAnalysis data={data.hubAnalise} selectedHub={filters.hub} />
           )}
-        </div>
+          </div>
+        )}
       </main>
     </div>
   )
@@ -316,5 +342,43 @@ function TabButton({
       {icon}
       {label}
     </button>
+  )
+}
+
+function HomeView({ onSelect }: { onSelect: (id: Exclude<TabId, "home">) => void }) {
+  return (
+    <div className="flex flex-col gap-8 py-4">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl text-balance">
+          Routing Clock XD
+        </h1>
+        <p className="max-w-2xl text-pretty text-base text-muted-foreground">
+          Escolha uma área para começar. Cada painel reúne as métricas e o acompanhamento da roteirização de
+          cross-docking.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {PAGES.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => onSelect(p.id)}
+            className="group flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 text-left shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+              <p.Icon className="h-6 w-6" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-lg font-bold tracking-tight text-foreground text-balance">{p.label}</h2>
+              <p className="text-pretty text-sm leading-relaxed text-muted-foreground">{p.descricao}</p>
+            </div>
+            <span className="mt-auto inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
+              Acessar
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }

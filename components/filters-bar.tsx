@@ -174,6 +174,95 @@ function DateRangeFilter({
   )
 }
 
+/**
+ * Barra de filtros HORIZONTAL, exibida no topo do conteúdo de cada aba.
+ * Mostra todos os filtros lado a lado (com quebra de linha em telas menores).
+ */
+export function FiltersTopBar({
+  filters,
+  opcoes,
+  onChange,
+  onReset,
+}: {
+  filters: Filters
+  opcoes: DashboardOpcoes
+  onChange: (next: Partial<Filters>) => void
+  onReset?: () => void
+}) {
+  return (
+    <section className="rounded-xl border border-border bg-card/60 p-4">
+      <div className="mb-3 flex items-center gap-2 text-muted-foreground">
+        <Filter className="h-4 w-4" />
+        <h2 className="text-xs font-bold uppercase tracking-wide">Filtros</h2>
+        {onReset && (
+          <button
+            onClick={onReset}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Limpar
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <MultiSelectFilter
+          label="Regional"
+          value={filters.regional}
+          allLabel="TODAS"
+          options={opcoes.regionais}
+          onChange={(v) => onChange({ regional: v })}
+          highlight
+        />
+        <MultiSelectFilter
+          label="HUB"
+          value={filters.hub}
+          allLabel="TODOS"
+          options={opcoes.hubs}
+          onChange={(v) => onChange({ hub: v })}
+          highlight
+        />
+        <MultiSelectFilter
+          label="Mês"
+          value={filters.mes}
+          allLabel="TODOS"
+          options={opcoes.meses}
+          onChange={(v) => onChange({ mes: v })}
+        />
+        <MultiSelectFilter
+          label="Semana"
+          value={filters.semana}
+          allLabel="TODAS"
+          options={opcoes.semanas}
+          onChange={(v) => onChange({ semana: v })}
+        />
+        <MultiSelectFilter
+          label="Tipo Roteirização"
+          value={filters.tipo}
+          allLabel="TODOS"
+          options={["D-1", "D-2", "W-1"]}
+          onChange={(v) => onChange({ tipo: v })}
+          highlight
+        />
+        <DateRangeFilter
+          label="Data da Roteirização"
+          inicio={filters.roteirizacaoInicio}
+          fim={filters.roteirizacaoFim}
+          onInicio={(v) => onChange({ roteirizacaoInicio: v })}
+          onFim={(v) => onChange({ roteirizacaoFim: v })}
+        />
+        <DateRangeFilter
+          label="Data da Coleta"
+          inicio={filters.rotInicio}
+          fim={filters.rotFim}
+          onInicio={(v) => onChange({ rotInicio: v })}
+          onFim={(v) => onChange({ rotFim: v })}
+        />
+      </div>
+    </section>
+  )
+}
+
 export function FiltersBar({ filters, opcoes, onChange, collapsed, onToggle, onReset }: FiltersBarProps) {
   // Quando recolhida, mostra apenas uma faixa fina e discreta com o botão de abrir.
   if (collapsed) {
