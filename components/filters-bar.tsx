@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Check, ChevronDown, Filter, PanelLeftClose, PanelLeftOpen, RotateCcw } from "lucide-react"
+import { Check, ChevronDown, ChevronUp, Filter, PanelLeftClose, PanelLeftOpen, RotateCcw } from "lucide-react"
 import type { DashboardOpcoes, Filters } from "@/lib/types"
 
 interface FiltersBarProps {
@@ -189,12 +189,37 @@ export function FiltersTopBar({
   onChange: (next: Partial<Filters>) => void
   onReset?: () => void
 }) {
+  const [collapsed, setCollapsed] = useState(false)
+
+  // Conta filtros ativos para sinalizar quando o painel está recolhido.
+  const activeCount = [
+    parseSelected(filters.hub, "TODOS").length > 0,
+    parseSelected(filters.regional, "TODAS").length > 0,
+    parseSelected(filters.tipo, "TODOS").length > 0,
+    parseSelected(filters.mes, "TODOS").length > 0,
+    parseSelected(filters.semana, "TODAS").length > 0,
+    !!filters.roteirizacaoInicio || !!filters.roteirizacaoFim,
+    !!filters.rotInicio || !!filters.rotFim,
+  ].filter(Boolean).length
+
   return (
     <section className="rounded-xl border border-border bg-card/60 p-4">
-      <div className="mb-3 flex items-center gap-2 text-muted-foreground">
-        <Filter className="h-4 w-4" />
-        <h2 className="text-xs font-bold uppercase tracking-wide">Filtros</h2>
-        {onReset && (
+      <div className={`flex items-center gap-2 text-muted-foreground ${collapsed ? "" : "mb-3"}`}>
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          aria-expanded={!collapsed}
+          className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide transition-colors hover:text-foreground"
+        >
+          <Filter className="h-4 w-4" />
+          Filtros
+          {collapsed && activeCount > 0 && (
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground">
+              {activeCount}
+            </span>
+          )}
+          {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+        </button>
+        {onReset && !collapsed && (
           <button
             onClick={onReset}
             className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground"
@@ -205,7 +230,9 @@ export function FiltersTopBar({
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div
+        className={`grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 ${collapsed ? "hidden" : ""}`}
+      >
         <MultiSelectFilter
           label="HUB"
           value={filters.hub}
