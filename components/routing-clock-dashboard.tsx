@@ -131,46 +131,13 @@ export function RoutingClockDashboard() {
     })
   }
 
-  // "Atualizar Dados": modelo assíncrono. Dispara o refresh da Connected Sheet,
-  // faz polling do status até a nova execução do BigQuery concluir e só então
-  // rebusca os dados. Evita o timeout da função serverless (refresh pode ser longo).
+  // "Atualizar Dados": apenas re-busca os dados atuais do Google Sheets e atualiza
+  // o dashboard. NÃO dispara o refresh da Connected Sheet / query do BigQuery
+  // (acesso indisponível no momento).
   const handleRefresh = async () => {
     setRefreshingSource(true)
     setRefreshError(null)
     try {
-      // 1) Dispara o refresh e captura a assinatura base (lastRefreshTime anterior).
-      const trigRes = await fetch("/api/routing-clock/refresh?action=trigger")
-      const trig = (await trigRes.json()) as {
-        triggered?: boolean
-        signature?: string
-        hasSources?: boolean
-        error?: string
-      }
-
-      // Se o Google recusou o refresh (ex.: VPC Service Controls), reporta ao usuário.
-      if (trig.error) {
-        setRefreshError(trig.error)
-      }
-
-      // 2) Se há Connected Sheets, faz polling até concluir (até ~4 min).
-      if (trig.triggered && trig.hasSources) {
-        const sig = trig.signature ?? ""
-        const deadline = Date.now() + 240_000
-        while (Date.now() < deadline) {
-          await new Promise((r) => setTimeout(r, 3000))
-          try {
-            const stRes = await fetch(`/api/routing-clock/refresh?action=status&sig=${encodeURIComponent(sig)}`)
-            const st = (await stRes.json()) as { done?: boolean }
-            if (st.done) break
-          } catch {
-            // ignora falha transitória de polling e tenta de novo
-          }
-        }
-        // Pequena folga para a fórmula da aba lida (Extração_Query) recalcular.
-        await new Promise((r) => setTimeout(r, 2500))
-      }
-
-      // 3) Rebusca os dados já atualizados.
       await mutate()
       setLastUpdated(new Date())
     } catch {

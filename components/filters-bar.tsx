@@ -189,7 +189,7 @@ export function FiltersTopBar({
   onChange: (next: Partial<Filters>) => void
   onReset?: () => void
 }) {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(true)
 
   // Conta filtros ativos para sinalizar quando o painel está recolhido.
   const activeCount = [
