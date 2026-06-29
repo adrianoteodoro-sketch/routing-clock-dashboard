@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation"
+import { RoutingClockDashboard } from "@/components/routing-clock-dashboard"
 
 export default function Home() {
-  redirect("/routing-clock")
+  return <RoutingClockDashboard />
 }

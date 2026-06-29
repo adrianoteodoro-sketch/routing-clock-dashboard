@@ -20,7 +20,7 @@ export const HUB_TO_REGIONAL: Record<string, string> = {
   BRXMG3: "SPIO",
   BRXSP11: "SPIO",
   BRXPR4: "SPIO",
-  CAMPINAS: "SPIO",
+  CAMPINAS: "MEGAS",
   BRXSP5: "SPIO",
   BRPR01: "SUL",
   BRXSC2: "SUL",

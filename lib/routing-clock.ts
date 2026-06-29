@@ -420,7 +420,7 @@ function buildSerie(orders: RoutingOrder[], key: "month" | "week"): SeriePonto[]
     }))
 }
 
-/** Performance e volume por tipo de roteirização (W-1 / D-1 / D-2), na ordem fixa. */
+/** Performance e volume por tipo de roteirizaç��o (W-1 / D-1 / D-2), na ordem fixa. */
 function buildPerfPorTipo(orders: RoutingOrder[]): PerfPorTipo[] {
   const ordem: TipoRoteirizacao[] = ["W-1", "D-1", "D-2"]
   return ordem
@@ -486,21 +486,45 @@ function buildDiasRoteirizados(orders: RoutingOrder[]): DiaRoteirizado[] {
     })
 }
 
+/** Deriva os rótulos de mês ("YYYY/M") e semana ("Wxx") de uma data "YYYY-MM-DD". */
+function labelsDeData(iso: string): { month: string; week: string } | null {
+  if (!iso) return null
+  const [y, m, d] = iso.split("-").map(Number)
+  if (!y || !m || !d) return null
+  const date = new Date(y, m - 1, d)
+  return { month: `${date.getFullYear()}/${date.getMonth() + 1}`, week: `W${isoWeek(date)}` }
+}
+
 /**
  * Correlaciona as anomalias registradas com o período/escopo filtrado e as agrupa
  * por categoria de problema, separando as que geraram atraso das que não geraram.
- * Filtra por regional, hub, tipo e intervalo da DATA DA COLETA (col. B), o mesmo
- * eixo usado pelos roteiros (RTG_ORD_PLAN_LOCAL_DATE) — garante acuracidade.
- * Obs.: os filtros de mês/semana não se aplicam (anomalia não tem rótulo semanal).
+ * Aplica os MESMOS filtros usados nos roteiros:
+ *  - Regional, HUB e Tipo (escopo)
+ *  - Data da Coleta (col. B "dataColeta")
+ *  - Data da Roteirização, Mês, Semana e Ano -> derivados de "registradoEm"
+ *    (col. A "Registrado em"), equivalente à data de roteirização dos roteiros.
  */
-/** Aplica os mesmos filtros de período/escopo das anomalias (data da coleta). */
+/** Aplica os mesmos filtros de período/escopo das anomalias. */
 function filtraAnomalias(anomalias: Anomalia[], f: Filters): Anomalia[] {
   return anomalias.filter((a) => {
     if (!matchesMulti(f.regional, "TODAS", a.regional)) return false
     if (!matchesMulti(f.hub, "TODOS", a.hub)) return false
     if (!matchesMulti(f.tipo, "TODOS", a.tipoRoteirizacao)) return false
+    // Data da Coleta (col. B).
     if (f.rotInicio && (!a.dataColeta || a.dataColeta < f.rotInicio)) return false
     if (f.rotFim && (!a.dataColeta || a.dataColeta > f.rotFim)) return false
+    // Data da Roteirização (registradoEm, col. A).
+    if (f.roteirizacaoInicio && (!a.registradoEm || a.registradoEm < f.roteirizacaoInicio)) return false
+    if (f.roteirizacaoFim && (!a.registradoEm || a.registradoEm > f.roteirizacaoFim)) return false
+    // Mês / Semana / Ano -> derivados da data de registro (mesma lógica dos roteiros).
+    const precisaMes = !!f.mes && f.mes !== "TODOS"
+    const precisaSemana = !!f.semana && f.semana !== "TODAS"
+    if (precisaMes || precisaSemana) {
+      const labels = labelsDeData(a.registradoEm)
+      if (!labels) return false
+      if (!matchesMulti(f.mes, "TODOS", labels.month)) return false
+      if (!matchesMulti(f.semana, "TODAS", labels.week)) return false
+    }
     return true
   })
 }
