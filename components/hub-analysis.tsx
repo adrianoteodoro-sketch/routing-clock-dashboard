@@ -40,6 +40,9 @@ function fmtDate(iso: string): string {
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    // As datas/horas da operação são serializadas como UTC apenas para transporte.
+    // Exibir no fuso do navegador reduziria 3h no Brasil (17:00 apareceria como 14:00).
+    timeZone: "UTC",
   }).format(d)
 }
 
