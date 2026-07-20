@@ -91,9 +91,40 @@ const fetcher = async (url: string) => {
   return response.json()
 }
 
+const FILTER_QUERY_KEYS: (keyof Filters)[] = [
+  "regional",
+  "hub",
+  "mes",
+  "semana",
+  "tipo",
+  "rotInicio",
+  "rotFim",
+  "roteirizacaoInicio",
+  "roteirizacaoFim",
+]
+
+function getInitialDashboardState(): { filters: Filters; tab: TabId } {
+  if (typeof window === "undefined") return { filters: DEFAULT_FILTERS, tab: "home" }
+
+  const params = new URLSearchParams(window.location.search)
+  const filters = { ...DEFAULT_FILTERS }
+  for (const key of FILTER_QUERY_KEYS) {
+    const value = params.get(key)
+    if (value !== null && value !== "") filters[key] = value
+  }
+
+  const requestedTab = params.get("tab")
+  const tab: TabId = requestedTab && ["home", "geral", "acompanhamento", "hubs"].includes(requestedTab)
+    ? (requestedTab as TabId)
+    : "home"
+
+  return { filters, tab }
+}
+
 export function RoutingClockDashboard() {
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
-  const [tab, setTab] = useState<TabId>("home")
+  const [initialState] = useState(getInitialDashboardState)
+  const [filters, setFilters] = useState<Filters>(initialState.filters)
+  const [tab, setTab] = useState<TabId>(initialState.tab)
 
   const query = useMemo(() => {
     const sp = new URLSearchParams({
