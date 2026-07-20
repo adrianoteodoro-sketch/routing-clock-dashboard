@@ -83,6 +83,7 @@ export interface PerfPorTipo {
 
 /** TMR executado médio por dia da semana da coleta, segmentado em D-1 e W-1. */
 export interface TmrDiaTipo {
+  facilityId: string
   diaSemana: string
   ordemDia: number
   d1Min: number | null
