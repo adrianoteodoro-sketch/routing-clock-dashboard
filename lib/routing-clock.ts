@@ -164,7 +164,7 @@ export function getTipoRoteirizacao(
  *  - Coleta sábado (excepcional) -> quarta da mesma semana 18:00
  * D-1 (replanning): entrega no dia útil anterior à coleta às 17:00
  *  - ter->seg, qua->ter, qui->qua, sex->qui, seg->sex anterior
- *  - sábado -> quarta anterior às 17:00
+ *  - sábado -> sexta anterior às 17:00
  */
 export function getDeadline(
   collectionDate: Date,
@@ -210,8 +210,8 @@ export function getDeadline(
       return atHour(addDays(collectionDate, -1), 17)
     case 1: // segunda -> sexta anterior
       return atHour(addDays(collectionDate, -3), 17)
-    case 6: // sábado -> quarta anterior 17:00
-      return atHour(addDays(collectionDate, -3), 17)
+    case 6: // sábado -> sexta anterior 17:00
+      return atHour(addDays(collectionDate, -1), 17)
     default:
       return null
   }

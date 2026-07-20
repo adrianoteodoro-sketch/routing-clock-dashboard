@@ -67,7 +67,7 @@ A âncora de tempo é a **data de roteirização** (criação do roteiro), **nã
   - coleta qua/qui/sex → **quinta 18:00**;
   - sábado (excepcional) → **quarta 18:00**.
 - **D-1 (replanning):** dia útil anterior à coleta às **17:00**
-  (seg→sex anterior; sábado→quarta anterior).
+  (seg→sex anterior; sábado→sexta anterior).
 - **D-2 (exceção/longa distância):** HUBs em `DEADLINE_EXCEPTIONS` → prazo por
   **dias úteis + hora** configurados (têm prioridade sobre a regra padrão).
 - **Histórico D-2 (formulário):** usa direto o desfecho
