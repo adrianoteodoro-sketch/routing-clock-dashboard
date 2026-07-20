@@ -18,6 +18,7 @@ import type {
   RoutingOrder,
   SeriePonto,
   TipoRoteirizacao,
+  TmrDiaTipo,
   WaterfallPonto,
 } from "./types"
 import { regionalForHub, isDeactivatedHub } from "./hubs"
@@ -420,7 +421,39 @@ function buildSerie(orders: RoutingOrder[], key: "month" | "week"): SeriePonto[]
     }))
 }
 
-/** Performance e volume por tipo de roteirizaç��o (W-1 / D-1 / D-2), na ordem fixa. */
+/** TMR executado médio por dia da semana da coleta, separado entre D-1 e W-1. */
+function buildTmrPorDiaTipo(orders: RoutingOrder[]): TmrDiaTipo[] {
+  const dias = [
+    { diaSemana: "Seg", ordemDia: 1 },
+    { diaSemana: "Ter", ordemDia: 2 },
+    { diaSemana: "Qua", ordemDia: 3 },
+    { diaSemana: "Qui", ordemDia: 4 },
+    { diaSemana: "Sex", ordemDia: 5 },
+    { diaSemana: "Sáb", ordemDia: 6 },
+    { diaSemana: "Dom", ordemDia: 7 },
+  ]
+
+  return dias
+    .map(({ diaSemana, ordemDia }) => {
+      const dayOrders = orders.filter((o) => diaSemanaInfo(o.collectionDate)?.label === diaSemana)
+      const d1 = dayOrders.filter((o) => o.tipoRoteirizacao === "D-1")
+      const w1 = dayOrders.filter((o) => o.tipoRoteirizacao === "W-1")
+      const average = (items: RoutingOrder[]) =>
+        items.length ? Math.round(items.reduce((sum, o) => sum + o.durationMinutes, 0) / items.length) : null
+
+      return {
+        diaSemana,
+        ordemDia,
+        d1Min: average(d1),
+        d1Volume: d1.length,
+        w1Min: average(w1),
+        w1Volume: w1.length,
+      }
+    })
+    .filter((item) => item.d1Volume > 0 || item.w1Volume > 0)
+}
+
+/** Performance e volume por tipo de roteirização (W-1 / D-1 / D-2), na ordem fixa. */
 function buildPerfPorTipo(orders: RoutingOrder[]): PerfPorTipo[] {
   const ordem: TipoRoteirizacao[] = ["W-1", "D-1", "D-2"]
   return ordem
@@ -871,6 +904,7 @@ export function buildDashboard(
     semanal,
     performancePorTipo: buildPerfPorTipo(filtered),
     diasRoteirizados: buildDiasRoteirizados(filtered),
+    tmrPorDiaTipo: buildTmrPorDiaTipo(filtered),
     waterfall: buildWaterfall(filtered, anomaliasResumo.categorias),
     anomalias: anomaliasResumo,
     ofensores: buildOfensores(filtered),

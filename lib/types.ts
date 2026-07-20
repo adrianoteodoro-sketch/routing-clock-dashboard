@@ -81,6 +81,16 @@ export interface PerfPorTipo {
   meta: number
 }
 
+/** TMR executado médio por dia da semana da coleta, segmentado em D-1 e W-1. */
+export interface TmrDiaTipo {
+  diaSemana: string
+  ordemDia: number
+  d1Min: number | null
+  d1Volume: number
+  w1Min: number | null
+  w1Volume: number
+}
+
 export interface WaterfallPonto {
   label: string
   valor: number
@@ -258,6 +268,7 @@ export interface DashboardData {
   semanal: SeriePonto[]
   performancePorTipo: PerfPorTipo[]
   diasRoteirizados: DiaRoteirizado[]
+  tmrPorDiaTipo: TmrDiaTipo[]
   waterfall: WaterfallPonto[]
   anomalias: AnomaliasResumo
   ofensores: Ofensor[]

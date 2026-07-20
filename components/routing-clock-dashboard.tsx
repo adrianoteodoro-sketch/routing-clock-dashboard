@@ -8,6 +8,7 @@ import { KpiCards } from "@/components/kpi-cards"
 import { MonthlyChart, WeeklyChart } from "@/components/performance-charts"
 import { WaterfallChart } from "@/components/waterfall-chart"
 import { TipoPerformanceChart } from "@/components/tipo-performance-chart"
+import { TmrDiaTipoChart } from "@/components/tmr-dia-tipo-chart"
 import { AnomaliasPanel } from "@/components/anomalias-panel"
 import { OffendersList, SeverityRange } from "@/components/offenders-severity"
 import { HubAnalysis, HubTable } from "@/components/hub-analysis"
@@ -286,6 +287,8 @@ export function RoutingClockDashboard() {
                 <WaterfallChart data={data.waterfall} />
                 <TipoPerformanceChart data={data.performancePorTipo} meta={data.kpis.meta} />
               </div>
+
+              <TmrDiaTipoChart data={data.tmrPorDiaTipo} />
 
               <AnomaliasPanel data={data.anomalias} />
 
