@@ -41,7 +41,13 @@ export async function GET(req: NextRequest) {
     // Mescla os roteiros D-2 (histórico) com a base atual para somar no volume total.
     const orders = [...processRows(rows), ...processD2Rows(d2rows)]
     const data = buildDashboard(orders, filters, fonte, anomalias)
-    return NextResponse.json(data)
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    })
   } catch (error) {
     console.log("[v0] Erro na API routing-clock:", (error as Error).message)
     return NextResponse.json({ error: "Falha ao carregar dados" }, { status: 500 })

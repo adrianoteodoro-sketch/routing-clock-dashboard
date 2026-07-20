@@ -85,7 +85,11 @@ const DEFAULT_FILTERS: Filters = {
   roteirizacaoFim: TODAY,
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+const fetcher = async (url: string) => {
+  const response = await fetch(url, { cache: "no-store" })
+  if (!response.ok) throw new Error(`Falha ao buscar dados (${response.status})`)
+  return response.json()
+}
 
 export function RoutingClockDashboard() {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
@@ -138,10 +142,17 @@ export function RoutingClockDashboard() {
     setRefreshingSource(true)
     setRefreshError(null)
     try {
-      await mutate()
+      // O nonce garante uma nova leitura em produção; cache: no-store impede que
+      // navegador, CDN ou runtime devolvam a resposta anterior.
+      const separator = query.includes("?") ? "&" : "?"
+      const freshData = await fetcher(`${query}${separator}_refresh=${Date.now()}`)
+      if (freshData?.error) throw new Error(freshData.error)
+
+      // Atualiza imediatamente o cache da chave estável do SWR sem nova requisição.
+      await mutate(freshData, { revalidate: false })
       setLastUpdated(new Date())
-    } catch {
-      await mutate()
+    } catch (error) {
+      setRefreshError(error instanceof Error ? error.message : "Falha ao buscar os dados atuais do Sheets")
     } finally {
       setRefreshingSource(false)
     }
@@ -163,7 +174,7 @@ export function RoutingClockDashboard() {
           >
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="font-semibold">Não foi possível atualizar a consulta na planilha.</span>
+              <span className="font-semibold">Não foi possível buscar os dados atuais do Google Sheets.</span>
               <span className="break-words text-danger/90">{refreshError}</span>
             </div>
             <button
