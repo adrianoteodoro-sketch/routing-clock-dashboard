@@ -104,8 +104,10 @@ const FILTER_QUERY_KEYS: (keyof Filters)[] = [
   "roteirizacaoFim",
 ]
 
-function getInitialDashboardState(): { filters: Filters; tab: TabId } {
-  if (typeof window === "undefined") return { filters: DEFAULT_FILTERS, tab: "home" }
+function getInitialDashboardState(): { filters: Filters; tab: TabId; dedicatedAnalysis: boolean } {
+  if (typeof window === "undefined") {
+    return { filters: DEFAULT_FILTERS, tab: "home", dedicatedAnalysis: false }
+  }
 
   const params = new URLSearchParams(window.location.search)
   const filters = { ...DEFAULT_FILTERS }
@@ -119,13 +121,18 @@ function getInitialDashboardState(): { filters: Filters; tab: TabId } {
     ? (requestedTab as TabId)
     : "home"
 
-  return { filters, tab }
+  return {
+    filters,
+    tab,
+    dedicatedAnalysis: params.get("analise") === "arena-brxsp10",
+  }
 }
 
 export function RoutingClockDashboard() {
   const [initialState] = useState(getInitialDashboardState)
   const [filters, setFilters] = useState<Filters>(initialState.filters)
   const [tab, setTab] = useState<TabId>(initialState.tab)
+  const isArenaBrxsp10Analysis = initialState.dedicatedAnalysis
 
   const query = useMemo(() => {
     const sp = new URLSearchParams({
@@ -288,7 +295,7 @@ export function RoutingClockDashboard() {
                 <TipoPerformanceChart data={data.performancePorTipo} meta={data.kpis.meta} />
               </div>
 
-              <TmrDiaTipoChart data={data.tmrPorDiaTipo} />
+              {isArenaBrxsp10Analysis && <TmrDiaTipoChart data={data.tmrPorDiaTipo} />}
 
               <AnomaliasPanel data={data.anomalias} />
 
