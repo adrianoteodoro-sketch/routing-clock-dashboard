@@ -577,17 +577,28 @@ function buildHubsComAnomalia(anomalias: Anomalia[], f: Filters): Set<string> {
   return new Set(filtraAnomalias(anomalias, f).map((a) => a.hub).filter(Boolean))
 }
 
-function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters): AnomaliasResumo {
+function buildAnomaliasResumo(anomalias: Anomalia[], f: Filters, orders: RoutingOrder[]): AnomaliasResumo {
   const filtered = filtraAnomalias(anomalias, f)
+
+  // A coluna G ("Houve atraso na roteirização?") é preenchida manualmente e, com
+  // frequência, marca "Sim" mesmo quando a roteirização foi publicada no prazo.
+  // Para o painel não divergir do Routing Clock, a anomalia só conta como
+  // "com atraso" se existir, no mesmo HUB e Data da Coleta, um roteiro realmente
+  // fora do prazo. As demais são reclassificadas como "sem atraso".
+  const atrasosReais = new Set(
+    orders.filter((o) => !o.isAdherent).map((o) => `${o.facilityId}|${o.collectionDate}`),
+  )
+  const gerouAtraso = (a: Anomalia) => a.houveAtraso && atrasosReais.has(`${a.hub}|${a.dataColeta}`)
 
   const catMap = new Map<string, { comAtraso: number; semAtraso: number }>()
   let comAtraso = 0
   let semAtraso = 0
   for (const a of filtered) {
-    if (a.houveAtraso) comAtraso++
+    const atrasou = gerouAtraso(a)
+    if (atrasou) comAtraso++
     else semAtraso++
     const c = catMap.get(a.problema) ?? { comAtraso: 0, semAtraso: 0 }
-    if (a.houveAtraso) c.comAtraso++
+    if (atrasou) c.comAtraso++
     else c.semAtraso++
     catMap.set(a.problema, c)
   }
@@ -865,7 +876,7 @@ export function buildDashboard(
   const volumeTotal = filtered.length
 
   // Resumo de anomalias do período (reaproveitado no waterfall e no painel lateral).
-  const anomaliasResumo = buildAnomaliasResumo(anomalias, filters)
+  const anomaliasResumo = buildAnomaliasResumo(anomalias, filters, filtered)
   // HUBs com anomalia registrada no período, para sinalizar na tabela de HUBs.
   const hubsComAnomalia = buildHubsComAnomalia(anomalias, filters)
 

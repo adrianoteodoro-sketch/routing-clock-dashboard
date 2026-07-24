@@ -104,12 +104,8 @@ const FILTER_QUERY_KEYS: (keyof Filters)[] = [
   "roteirizacaoFim",
 ]
 
-function getInitialDashboardState(): { filters: Filters; tab: TabId; dedicatedAnalysis: boolean } {
-  if (typeof window === "undefined") {
-    return { filters: DEFAULT_FILTERS, tab: "home", dedicatedAnalysis: false }
-  }
-
-  const params = new URLSearchParams(window.location.search)
+function readDashboardStateFromUrl(search: string): { filters: Filters; tab: TabId; dedicatedAnalysis: boolean } {
+  const params = new URLSearchParams(search)
   const filters = { ...DEFAULT_FILTERS }
   for (const key of FILTER_QUERY_KEYS) {
     const value = params.get(key)
@@ -129,10 +125,19 @@ function getInitialDashboardState(): { filters: Filters; tab: TabId; dedicatedAn
 }
 
 export function RoutingClockDashboard() {
-  const [initialState] = useState(getInitialDashboardState)
-  const [filters, setFilters] = useState<Filters>(initialState.filters)
-  const [tab, setTab] = useState<TabId>(initialState.tab)
-  const isArenaBrxsp10Analysis = initialState.dedicatedAnalysis
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
+  const [tab, setTab] = useState<TabId>("home")
+  const [isArenaBrxsp10Analysis, setIsArenaBrxsp10Analysis] = useState(false)
+
+  // Os filtros vindos da URL são aplicados após a montagem para que o HTML do
+  // servidor e a primeira renderização do cliente sejam idênticos (sem erro de
+  // hidratação). Roda apenas uma vez, preservando alterações feitas pelo usuário.
+  useEffect(() => {
+    const fromUrl = readDashboardStateFromUrl(window.location.search)
+    setFilters(fromUrl.filters)
+    setTab(fromUrl.tab)
+    setIsArenaBrxsp10Analysis(fromUrl.dedicatedAnalysis)
+  }, [])
 
   const query = useMemo(() => {
     const sp = new URLSearchParams({
